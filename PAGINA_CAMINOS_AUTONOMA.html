@@ -3058,20 +3058,18 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   });
 
   /* ---- extraer coordenadas desde texto / imagen (OCR) ---- */
-  function parseCoordsText(raw) {
-    const s = String(raw || '').replace(/[“”″]/g, '"').replace(/[‘’′`´]/g, "'").replace(/[º˚]/g, '°').replace(/\bLATITIUD\b|\bLATITUD\b/gi, 'LAT').replace(/\bLONGITUD\b/gi, 'LON');
-    const RX = /(\d{1,3})\s*[°*o]\s*(\d{1,2})\s*'\s*(\d{1,2}(?:[.,]\d+)?)\s*(?:''|"|')?\s*([NSEOW])\b/gi, hits = [];
-    let m; while ((m = RX.exec(s))) hits.push({ i: m.index, txt: m[1] + '°' + m[2] + "'" + m[3].replace(',', '.') + '"' + m[4].toUpperCase(), h: m[4].toUpperCase() });
-    const pos = (re) => { const r = new RegExp(re, 'gi'), o = []; let q; while ((q = r.exec(s))) o.push(q.index); return o; };
-    const ini = pos('INICIO'), fin = pos('FINAL'), out = { latI: '', lonI: '', latF: '', lonF: '' };
-    const lat = hits.filter((q) => /[NS]/.test(q.h)), lon = hits.filter((q) => /[EOW]/.test(q.h));
-    const near = (arr, p, lim) => arr.filter((q) => q.i > p && q.i < lim)[0];
-    if (ini.length && fin.length) {
-      const a = Math.min(ini[0], fin[0]), b = Math.max(ini[0], fin[0]), isI = ini[0] < fin[0], s1 = [a, b], s2 = [b, s.length + 1];
-      const first = { lat: near(lat, s1[0], s1[1]), lon: near(lon, s1[0], s1[1]) }, second = { lat: near(lat, s2[0], s2[1]), lon: near(lon, s2[0], s2[1]) };
-      const I = isI ? first : second, F = isI ? second : first;
-      out.latI = I.lat ? I.lat.txt : ''; out.lonI = I.lon ? I.lon.txt : ''; out.latF = F.lat ? F.lat.txt : ''; out.lonF = F.lon ? F.lon.txt : '';
-    } else { out.latI = lat[0] ? lat[0].txt : ''; out.lonI = lon[0] ? lon[0].txt : ''; out.latF = lat[1] ? lat[1].txt : ''; out.lonF = lon[1] ? lon[1].txt : ''; }
+  function parseCoordsText(raw) { // tolerante: acepta "No:", "Wo:", comillas/letras sueltas del OCR; clasifica por grados (lat 10-20, lon 85-95) y en orden de aparición
+    const s = String(raw || '').replace(/[“”″]/g, '"').replace(/[‘’′`´]/g, "'").replace(/[º˚]/g, '°');
+    const RX = /(\d{1,3})\s*[°*o]\s*(\d{1,2})\s*'\s*(\d{1,2}(?:[.,]\d+)?)\s*(?:''|"|')?\s*([NSEOW]?)/gi, lat = [], lon = [], out = { latI: '', lonI: '', latF: '', lonF: '' };
+    let m; while ((m = RX.exec(s))) {
+      const dg = +m[1], h = (m[4] || '').toUpperCase(), tx = (hh) => m[1] + '°' + m[2].padStart(2, '0') + "'" + m[3].replace(',', '.') + '"' + hh;
+      if (dg >= 10 && dg <= 20 && !/[EOW]/.test(h)) lat.push({ i: m.index, txt: tx(h === 'S' ? 'S' : 'N') });
+      else if (dg >= 85 && dg <= 95 && !/[NS]/.test(h)) lon.push({ i: m.index, txt: tx(h === 'E' ? 'E' : 'O') });
+    }
+    const ini = s.search(/INICIO|INICIAL/i), fin = s.search(/FINAL/i);
+    let swap = false; if (ini >= 0 && fin >= 0 && fin < ini && lat.length > 1 && lat[0].i > fin && lat[0].i < ini) swap = true; // solo si el bloque FINAL aparece primero
+    const A = swap ? 1 : 0, B = swap ? 0 : 1;
+    out.latI = lat[A] ? lat[A].txt : ''; out.lonI = lon[A] ? lon[A].txt : ''; out.latF = lat[B] ? lat[B].txt : ''; out.lonF = lon[B] ? lon[B].txt : '';
     return out;
   }
   function cargarTesseract() {
@@ -3148,7 +3146,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     // anillos de distancia alrededor de la cabecera
     g.save(); g.setLineDash([14, 12]); g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 2; g.font = '22px Arial'; g.fillStyle = 'rgba(0,0,0,.65)'; g.textAlign = 'center'; g.textBaseline = 'middle';
     [500, 1000, 1500].forEach((m) => { const r = m / mpp; if (r < CH * 0.62 && r > 60) { g.beginPath(); g.arc(cx, cy, r, 0, 7); g.stroke(); g.save(); g.setLineDash([]); g.fillStyle = '#fff'; g.fillRect(cx + r - 38, cy - 13, 76, 26); g.fillStyle = 'rgba(0,0,0,.75)'; g.fillText(m >= 1000 ? (m / 1000) + ' km' : m + ' m', cx + r, cy); g.restore(); } }); g.restore();
-    pin(cx, cy, '#1d4ed8', 32); caja(['P-4', 'CENTRO DE ' + nombre.toUpperCase()], cx + 34, cy - 70);
+    pin(cx, cy, '#1d4ed8', 32); caja(['P-4', 'CENTRO DE ' + nombre.toUpperCase()], dentro ? cx + 34 : cx - 30, dentro ? cy - 70 : cy - 150);
     const geo = (pts, pf) => pts.map(([lo, la]) => pf(lo, la));
     if (dentro) {
       const pp = geo(R.pts, (lo, la) => [M.X(lo), M.Y(la)]); g.lineJoin = 'round'; g.lineCap = 'round'; g.beginPath(); pp.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.strokeStyle = '#fff'; g.lineWidth = 22; g.stroke(); g.strokeStyle = '#e11d1d'; g.lineWidth = 11; g.stroke();
@@ -3156,8 +3154,8 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
       pin(mx, my, '#e11d1d', 32); caja(['P-5 UBICACIÓN DEL PROYECTO', 'LATITUD: ' + dp.latI, 'LONGITUD: ' + dp.lonI, 'A ' + (dist / 1000).toFixed(2) + ' km DE LA CABECERA'], mx + 40, my - 100);
     } else {
       // detalle circular del proyecto, dibujado a escala sobre una cuadrícula
-      const D = 640, ix = CW - D / 2 - 40, iy = CH / 2 + 8, kk = kx(pla);
-      const loc = R.pts.map(([lo, la]) => [(lo - plo) * kk, (la - pla) * 111320]); let ext = 20; loc.forEach(([x, y]) => { ext = Math.max(ext, Math.abs(x) * 2, Math.abs(y) * 2); }); const ms = (D * 0.6) / ext, ic = cv(D, D), ig = ic.getContext('2d'), px = (x) => D / 2 + x * ms, py = (y) => D / 2 - y * ms;
+      const D = 440, ix = CW - D / 2 - 70, iy = CH / 2 - 10, kk = kx(pla);
+      const loc = R.pts.map(([lo, la]) => [(lo - plo) * kk, (la - pla) * 111320]); let ext = 20; loc.forEach(([x, y]) => { ext = Math.max(ext, Math.abs(x) * 2, Math.abs(y) * 2); }); const ms = (D * 0.5) / ext, ic = cv(D, D), ig = ic.getContext('2d'), px = (x) => D / 2 + x * ms, py = (y) => D / 2 - y * ms;
       ig.fillStyle = '#fff'; ig.fillRect(0, 0, D, D); let st = 10; for (const q of [10, 20, 25, 50, 100, 200, 500]) if (q * ms >= 46) { st = q; break; }
       let sat = false; // mapa de calles (NO satelital) detallado del lugar; si no hay detalle se usa el mapa gris de nivel 16
       const mppE = 156543.03392 * Math.cos(pla * Math.PI / 180);
@@ -3187,13 +3185,20 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
       ig.font = 'bold 22px Arial'; const tag = (txt, x, y) => { const w = ig.measureText(txt).width + 18; let bx = Math.max(14, Math.min(D - w - 14, x - w / 2)), by = Math.max(14, Math.min(D - 42, y)); ig.fillStyle = '#fff'; ig.fillRect(bx, by, w, 32); ig.strokeStyle = '#e11d1d'; ig.lineWidth = 2.5; ig.strokeRect(bx, by, w, 32); ig.fillStyle = '#b91c1c'; ig.textAlign = 'left'; ig.fillText(txt, bx + 9, by + 17); };
       const side = (i, j) => { const a = Math.atan2(py(loc[j][1]) - py(loc[i][1]), px(loc[j][0]) - px(loc[i][0])) - Math.PI / 2; return [px(loc[i][0]) + Math.cos(a) * 78, py(loc[i][1]) + Math.sin(a) * 78]; };
       { const [sx, sy] = side(0, 1 < n ? 1 : 0); tag('INICIO', sx, sy - 16); } { const [sx, sy] = side(n - 1, n - 2 >= 0 ? n - 2 : 0); tag('FINAL', sx, sy - 16); }
-      let bm = 10; for (const q of [10, 20, 25, 50, 100, 200, 500]) if (q * ms < D * 0.4) bm = q; ig.fillStyle = 'rgba(255,255,255,.85)'; ig.fillRect(D / 2 - bm * ms / 2 - 14, D - 106, bm * ms + 28, 62); ig.fillStyle = '#000'; ig.fillRect(D / 2 - bm * ms / 2, D - 58, bm * ms, 7); ig.font = 'bold 22px Arial'; ig.textAlign = 'center'; ig.fillText(bm + ' m', D / 2, D - 76);
+      let bm = 10; for (const q of [10, 20, 25, 50, 100, 200, 500]) if (q * ms < D * 0.4) bm = q; ig.fillStyle = 'rgba(255,255,255,.85)'; ig.fillRect(D / 2 - bm * ms / 2 - 14, D - 76, bm * ms + 28, 46); ig.fillStyle = '#000'; ig.fillRect(D / 2 - bm * ms / 2, D - 42, bm * ms, 6); ig.font = 'bold 20px Arial'; ig.textAlign = 'center'; ig.fillText(bm + ' m', D / 2, D - 56);
       ig.beginPath(); ig.moveTo(D / 2, 34); ig.lineTo(D / 2 - 14, 76); ig.lineTo(D / 2, 66); ig.lineTo(D / 2 + 14, 76); ig.closePath(); ig.fillStyle = '#000'; ig.fill(); ig.fillText('N', D / 2, 24);
       g.save(); g.beginPath(); g.arc(ix, iy, D / 2, 0, 7); g.closePath(); g.fillStyle = '#fff'; g.fill(); g.clip(); g.drawImage(ic, ix - D / 2, iy - D / 2); g.restore(); g.beginPath(); g.arc(ix, iy, D / 2, 0, 7); g.setLineDash([22, 12]); g.lineWidth = 5; g.strokeStyle = '#000'; g.stroke(); g.setLineDash([]);
       caja(['DETALLE DEL PROYECTO · P-5'], ix - D / 2 + 60, iy - D / 2 - 6, 30);
       const brg = Math.atan2((plo - cab.lo) * kx(cab.la), (pla - cab.la) * 111320) * 180 / Math.PI, dirs = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'], dn = dirs[Math.round(((brg + 360) % 360) / 45) % 8];
-      const ax = cx + 70, ay = cy, bxx = ix - D / 2 - 6, byy = iy; g.beginPath(); g.moveTo(ax, ay); g.lineTo(bxx, byy); g.setLineDash([20, 12]); g.strokeStyle = '#000'; g.lineWidth = 4; g.stroke(); g.setLineDash([]); const a2 = Math.atan2(byy - ay, bxx - ax); g.beginPath(); g.moveTo(bxx, byy); g.lineTo(bxx - 34 * Math.cos(a2 - 0.4), byy - 34 * Math.sin(a2 - 0.4)); g.lineTo(bxx - 34 * Math.cos(a2 + 0.4), byy - 34 * Math.sin(a2 + 0.4)); g.closePath(); g.fillStyle = '#000'; g.fill();
-      caja(['A ' + (dist / 1000).toFixed(1) + ' km AL ' + dn + ' (línea recta)'], ax + 40, (ay + byy) / 2 + 46, 26);
+      // ruta de acceso esquemática: sale de la cabecera, serpentea y llega al círculo del proyecto
+      const ax = cx + 26, ay = cy + 4, bxx = ix - D / 2, byy = iy, ddx = bxx - ax, amp = Math.min(150, Math.abs(ddx) * 0.22), c1 = [ax + ddx * 0.3, ay + amp], c2 = [ax + ddx * 0.62, byy + amp * 0.9];
+      const bz = (u) => { const v = 1 - u; return [v * v * v * ax + 3 * v * v * u * c1[0] + 3 * v * u * u * c2[0] + u * u * u * bxx, v * v * v * ay + 3 * v * v * u * c1[1] + 3 * v * u * u * c2[1] + u * u * u * byy]; };
+      const tg = (u) => { const p = bz(Math.min(1, u + 0.01)), q = bz(Math.max(0, u - 0.01)); return Math.atan2(p[1] - q[1], p[0] - q[0]); };
+      const curva = () => { g.beginPath(); g.moveTo(ax, ay); g.bezierCurveTo(c1[0], c1[1], c2[0], c2[1], bxx, byy); };
+      g.lineJoin = 'round'; g.lineCap = 'round'; curva(); g.strokeStyle = '#fff'; g.lineWidth = 20; g.stroke(); curva(); g.strokeStyle = '#e11d1d'; g.lineWidth = 9; g.stroke(); curva(); g.strokeStyle = '#fff'; g.lineWidth = 2.5; g.setLineDash([16, 14]); g.stroke(); g.setLineDash([]);
+      [0.22, 0.45, 0.72].forEach((u) => { const [qx, qy] = bz(u), an = tg(u); g.save(); g.translate(qx, qy); g.rotate(an); g.beginPath(); g.moveTo(14, 0); g.lineTo(-10, -11); g.lineTo(-10, 11); g.closePath(); g.fillStyle = '#fff'; g.fill(); g.restore(); });
+      g.beginPath(); g.arc(bxx, byy, 16, 0, 7); g.fillStyle = '#fff'; g.fill(); g.beginPath(); g.arc(bxx, byy, 10, 0, 7); g.fillStyle = '#e11d1d'; g.fill();
+      { const [mx, my] = bz(0.5); g.font = 'bold 26px Arial'; const l1 = 'A ' + (dist / 1000).toFixed(1) + ' km AL ' + dn, l2 = 'ruta de acceso (esquemática)', w1 = Math.max(g.measureText(l1).width, (g.font = '22px Arial', g.measureText(l2).width)) + 28; caja([l1, l2], mx - w1 / 2 + 14, my - 128, 24); }
       caja(['LATITUD: ' + dp.latI, 'LONGITUD: ' + dp.lonI], ix - D / 2 + 100, iy + D / 2 + 6, 26);
     }
     // escala, norte y créditos
