@@ -2047,7 +2047,7 @@ const PdfGen = (function () {
     const rem = (i, dir) => { const p = pts[i], t = tg[i]; const a = [p.x - t[1] * p.w / 2, p.y + t[0] * p.w / 2], b = [p.x + t[1] * p.w / 2, p.y - t[0] * p.w / 2]; const sh = (c) => [X(c[0] + t[0] * lr * dir), Y(c[1] + t[1] * lr * dir)]; const q = [[X(a[0]), Y(a[1])], [X(b[0]), Y(b[1])], sh(b), sh(a)]; d.setFillColor(190); d.setLineWidth(0.25); poly(q.concat([q[0]]), 'FD', true); };
     if (k === 2) rem(0, 1); if (k >= 1) rem(n - 1, -1);
     // flechas de continuación
-    const cont = (i, dir, txt) => { const p = pts[i], t = tg[i], x1 = X(p.x), y1 = Y(p.y), x2 = x1 + dir * t[0] * 14, y2 = y1 - dir * t[1] * 14; d.setLineWidth(0.4); d.line(x1, y1, x2, y2); d.setFillColor(0); const a = Math.atan2(y2 - y1, x2 - x1); d.triangle(x2 + 1.2 * Math.cos(a), y2 + 1.2 * Math.sin(a), x2 - 2.6 * Math.cos(a - 0.45), y2 - 2.6 * Math.sin(a - 0.45), x2 - 2.6 * Math.cos(a + 0.45), y2 - 2.6 * Math.sin(a + 0.45), 'F'); d.setFont('helvetica', 'bold'); if (op.contRot) { const ls = txt === 'CONTINÚA TERRACERÍA' ? ['CONTINÚA CAMINO', 'DE TERRACERÍA'] : ['CONTINÚA CAMINO', 'EXISTENTE']; d.setFontSize(3.6); ls.forEach((l, q) => { const wt = d.getTextWidth(l), xb = dir < 0 ? x2 - 1.2 - (ls.length - q) * 2 : x2 + 1.5 + q * 2; d.text(l, xb, y2 + wt / 2, { angle: 90 }); }); return; } d.setFontSize(5.5); d.text(txt, x2 + (dir * t[0] >= 0 ? 1.5 : -1.5), y2 - dir * t[1] * 1 - 1.6, { align: dir * t[0] >= 0 ? 'left' : 'right' }); };
+    const cont = (i, dir, txt) => { const p = pts[i], t = tg[i], x1 = X(p.x), y1 = Y(p.y), x2 = x1 + dir * t[0] * 14, y2 = y1 - dir * t[1] * 14; d.setLineWidth(0.4); d.line(x1, y1, x2, y2); d.setFillColor(0); const a = Math.atan2(y2 - y1, x2 - x1); d.triangle(x2 + 1.2 * Math.cos(a), y2 + 1.2 * Math.sin(a), x2 - 2.6 * Math.cos(a - 0.45), y2 - 2.6 * Math.sin(a - 0.45), x2 - 2.6 * Math.cos(a + 0.45), y2 - 2.6 * Math.sin(a + 0.45), 'F'); d.setFont('helvetica', 'bold'); if (op.contRot) { const ls = txt === 'CONTINÚA TERRACERÍA' ? ['CONTINÚA CAMINO', 'DE TERRACERÍA'] : ['CONTINÚA CAMINO', 'EXISTENTE']; d.setFontSize(3.6); const wmx = Math.max(...ls.map((l) => d.getTextWidth(l))), dyy = y2 - y1, goDn = dyy >= 0; /* el texto va justo después de la punta de la flecha (debajo o arriba), nunca encima de ella */ ls.forEach((l, q) => { const wt = d.getTextWidth(l), xb = x2 - 0.6 + q * 2.3 - (ls.length - 1) * 1.15 + 1, yb0 = goDn ? y2 + 2.2 + wmx - (wmx - wt) / 2 : y2 - 2.2 - (wmx - wt) / 2; d.text(l, xb, yb0, { angle: 90 }); }); return; } d.setFontSize(5.5); d.text(txt, x2 + (dir * t[0] >= 0 ? 1.5 : -1.5), y2 - dir * t[1] * 1 - 1.6, { align: dir * t[0] >= 0 ? 'left' : 'right' }); };
     cont(0, -1, k === 2 ? 'CONTINÚA TERRACERÍA' : 'CONTINÚA CAMINO EXISTENTE'); cont(n - 1, 1, k >= 1 ? 'CONTINÚA TERRACERÍA' : 'CONTINÚA CAMINO EXISTENTE');
     if (op.rotulos === 'rot') {
       let lx = -99, ly = -99;
@@ -2475,14 +2475,31 @@ const PdfGen = (function () {
     // franja de situación actual + libreta
     if (lib) {
       const N = pickN(lib.pts, 138, 14); v.N1 = N, pts = lib.pts, nn = pts.length, wd = lib.largo;
+      d.setFillColor(255); d.rect(269, 108.5, 44, 8.5, 'F'); // se quita el título fijo 'PLANTA DE SITUACION ACTUAL' del fondo y se vuelve a dibujar donde no estorbe
       const T = trazo(d, lib, v, { x: px(1130), y: px(408), w: px(610), h: px(22) }, N, { rotulos: 'rot', rotFs: 3.0, contRot: true });
       const dR = v.dirR, fq = (f) => (dR ? wd * (1 - f) : wd * f);
-      endBox(d, T.X(pts[0].x) + (dR ? -30 : -6), 75.5, 'INICIO DEL PROYECTO', DA.latI || 'PENDIENTE', DA.lonI || 'PENDIENTE');
-      endBox(d, T.X(pts[nn - 1].x) + (dR ? -6 : -34), 75.5, 'FINAL DEL PROYECTO', DA.latF || 'PENDIENTE', DA.lonF || 'PENDIENTE');
-      [0.46].forEach((f) => { const c = T.at(fq(f)), bx = T.X(c.x) - 14, py = T.Y(c.y) - c.w / 2 * T.s; const h = cajaNota(d, bx, 88, 28, 'TRAMO DE CAMINO A MEJORAR', 4); d.setLineWidth(0.15); d.line(bx + 6, 88 + h, T.X(c.x), py); });
+      const cT0 = T.at(fq(0.46)), TY = Math.max(79, T.Y(cT0.y) - cT0.w / 2 * T.s - 10); // caja «TRAMO» sobre el camino, sin tocarlo
+      // cuadros de coordenadas junto a cada extremo del camino (arriba del rótulo INICIO/FINAL DE CAMINO), dentro del espacio libre bajo los títulos
+      { const tw = (t) => { d.setFont('helvetica', 'bold'); d.setFontSize(4.8); return d.getTextWidth(t); }, BH = 9.5, MINY = 79, cT = T.at(fq(0.46)), tr = [T.X(cT.x) - 14, TY, T.X(cT.x) + 14, TY + 5.4];
+        const ponE = (pt, wq, t1, la, lo, nx) => { const w = Math.max(tw(t1), tw('LATITUD: ' + la), tw('LONGITUD: ' + lo)) + 5, ex = T.X(pt.x), ey = T.Y(pt.y) - T.at(wq).w / 2 * T.s, sg = T.X(nx.x) >= ex ? 1 : -1;
+          let x = Math.max(10, Math.min(409 - w, ex - w / 2 - sg * w * 0.3)), y = ey - 2 - 4 - BH; if (y < MINY) y = Math.min(MINY, ey + 14);
+          if (x < tr[2] + 2 && x + w > tr[0] - 2 && y < tr[3] + 1 && y + BH > tr[1] - 1) x = ex >= (tr[0] + tr[2]) / 2 ? Math.min(409 - w, tr[2] + 3) : Math.max(10, tr[0] - 3 - w);
+          endBox(d, x, y, t1, la, lo); };
+        ponE(pts[0], 0, 'INICIO DEL PROYECTO', DA.latI || 'PENDIENTE', DA.lonI || 'PENDIENTE', pts[1]);
+        ponE(pts[nn - 1], wd, 'FINAL DEL PROYECTO', DA.latF || 'PENDIENTE', DA.lonF || 'PENDIENTE', pts[nn - 2]); }
+      [0.46].forEach((f) => { const c = T.at(fq(f)), bx = T.X(c.x) - 14, py = T.Y(c.y) - c.w / 2 * T.s; const h = cajaNota(d, bx, TY, 28, 'TRAMO DE CAMINO A MEJORAR', 4); d.setLineWidth(0.15); d.line(bx + 14, TY + h, T.X(c.x), py - 0.3); });
       { const sR = T.X(pts[0].x) > T.X(pts[nn - 1].x); d.setFont('helvetica', 'bold'); d.setFontSize(4.2); d.text('INICIO DE CAMINO', T.X(pts[0].x) + (sR ? 2 : -2), T.Y(pts[0].y) - T.at(0).w / 2 * T.s - 2, { align: sR ? 'left' : 'right' }); d.text('FINAL DE CAMINO', T.X(pts[nn - 1].x) + (sR ? -2 : 2), T.Y(pts[nn - 1].y) - T.at(wd).w / 2 * T.s - 2, { align: sR ? 'right' : 'left' }); }
-      cubre(d, 1328, 496, 1395, 508, 1385, 503, 'ESCALA: 1/' + N);
-      if (tableRows(lib).length <= 20) libRef(sub(d, 357, 113, 0.58), v, 0, 0);
+      cubre(d, 1328, 496, 1395, 508, 1385, 503, '');
+      { let mnX = 1e9, mxY = 0; for (let i = 0; i < nn; i++) { mnX = Math.min(mnX, T.X(pts[i].x)); mxY = Math.max(mxY, T.Y(pts[i].y)); }
+        const tipX = (i, j) => { const ax = T.X(pts[i].x), ay = T.Y(pts[i].y), bx2 = T.X(pts[j].x), by2 = T.Y(pts[j].y), L = Math.hypot(ax - bx2, ay - by2) || 1; return ax + (ax - bx2) / L * 14; };
+        const tA = tipX(0, 1), tB = tipX(nn - 1, nn - 2), tL = Math.min(tA, tB), tR = Math.max(tA, tB);
+        const tt = 'PLANTA DE SITUACION ACTUAL'; d.setFont('helvetica', 'normal'); d.setFontSize(6); const W = d.getTextWidth(tt) + 7.5; d.setFontSize(4.4); const eT = 'ESCALA: 1/' + N, eW = d.getTextWidth(eT);
+        let xl = tL + 8, yb = mxY + 15.5, esc = 'lado';
+        if (xl + W + 3 + eW > tR - 6) { esc = 'abajo'; if (xl + W > tR - 6) { xl = tL - 19 - W; yb = Math.min(118, mxY + 5); } }
+        d.setFont('helvetica', 'normal'); d.setFontSize(6); d.setDrawColor(0); d.setLineWidth(0.3); d.circle(xl + 2.6, yb - 1.8, 2.3, 'S'); d.setLineWidth(0.2); d.line(xl, yb - 1.8, xl + 5.2, yb - 1.8); d.line(xl + 2.6, yb - 4.6, xl + 2.6, yb + 1);
+        d.text(tt, xl + 7.5, yb); d.setLineWidth(0.7); d.line(xl, yb + 1.6, xl + W, yb + 1.6); d.setLineWidth(0.2); d.line(xl, yb + 2.5, xl + W, yb + 2.5);
+        d.setFontSize(4.4); if (esc === 'lado') d.text(eT, xl + W + 3, yb, { align: 'left' }); else d.text(eT, xl + W, yb + 5.6, { align: 'right' }); }
+      if (tableRows(lib).length <= 20) { let maxY = 0; for (let i = 0; i < nn; i++) maxY = Math.max(maxY, T.Y(pts[i].y)); const nr = tableRows(lib).length, hT = (nr * 2.6 + 18) * 0.58 + 6, yL = Math.max(113, Math.min(maxY + 30, 216 - hT)); libRef(sub(d, 357, yL, 0.58), v, 0, 0); }
     }
     // mapa grande de ubicación
     if (IM.mapa) { // mapa ancho centrado en la parte baja del plano; el cuadro de nomenclatura del plano base se vuelve a pegar encima
