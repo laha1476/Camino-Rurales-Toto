@@ -255,6 +255,7 @@ body[data-modo=con] .m-sin{display:none!important}
           <button type="button" id="b-gen-recta" class="link" style="font-weight:600">Generar en línea recta entre inicio y final</button>
           <button type="button" id="b-gen-trazo" class="link" style="font-weight:600;margin-left:10px">Trazar el camino sobre la imagen satelital</button>
           <div id="g-msg" style="font-size:12px;margin-top:6px;color:var(--ink-2)"></div>
+          <div id="lib-est-warn" hidden style="font-size:13px;margin-top:6px;color:#b45309"></div>
           <div id="g-ask" hidden style="margin-top:8px;padding:10px;border:2px solid #b45309;border-radius:8px;font-size:13px"></div>
           <textarea id="g-out" rows="6" readonly spellcheck="false" style="margin-top:6px;display:none;font-size:12px" aria-label="Libreta estimada generada"></textarea>
           <div id="g-trazo" style="display:none;margin-top:8px">
@@ -2954,7 +2955,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     const box = $('lib-sum'); box.innerHTML = '';
     if (!v.lib.trim()) return false;
     const area = (v.monto > 0 && v.seg > 0) ? Math.floor(v.monto / v.seg * 10 + 1e-9) / 10 : null;
-    let an; try { an = Libreta.analyze(v.lib, { areaTarget: area, sep: v.sep > 0 ? v.sep : 2.5 }); } catch (e) { an = { ok: false, errs: ['No pude leer la tabla: ' + e.message] }; }
+    const est = !!v.libEst; let an; try { an = Libreta.analyze(v.lib, { areaTarget: est ? null : area, sep: v.sep > 0 ? v.sep : 2.5 }); } catch (e) { an = { ok: false, errs: ['No pude leer la tabla: ' + e.message] }; }
     if (!an.ok) { box.innerHTML = '<span style="color:var(--bad,#a33)">' + an.errs.map(esc).join('<br>') + '</span>'; return false; }
     v.libA = an;
     const f2 = (x) => nf(x, 2);
@@ -2962,10 +2963,11 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     h += '<br>Juntas con los anchos de la libreta: ' + an.juntas + ' m' + (area ? ' · área del monto: ' + nf(area, 1) + ' m²' : '');
     an.warn.concat(an.errs.slice(0, 3)).forEach((w) => { h += '<br>⚠ ' + esc(w); });
     if (v.libu) {
-      v.largo = Math.round(an.largo * 100) / 100; v.ancho = Math.round(an.wavg * 100) / 100; v.juntasLib = an.juntas;
+      if (!(est && v.largo > 5)) v.largo = Math.round(an.largo * 100) / 100; v.ancho = Math.round(an.wavg * 100) / 100; v.juntasLib = an.juntas;
       const k = v.remn || 0; if (k) v.libWs = k === 2 ? [an.wIni, an.wFin] : [an.wFin];
-      $('p-largo').value = v.largo; $('p-ancho').value = v.ancho;
+      if (!(est && parseFloat($('p-largo').value) > 5)) $('p-largo').value = v.largo; $('p-ancho').value = v.ancho;
     }
+    { const w = $('lib-est-warn'); if (w) { if (est && Math.abs(an.largo - v.largo) > 0.5) { w.hidden = false; w.innerHTML = '⚠ La libreta estimada mide <b>' + nf(an.largo, 2) + ' m</b> y el largo del camino es <b>' + nf(v.largo, 2) + ' m</b>. <button type="button" class="link" id="b-libre" style="font-weight:700">Regenerar la libreta con este largo</button>'; $('b-libre').addEventListener('click', async () => { try { const path = LASTGEN ? LASTGEN.path : coordsIF(); if (!path) { $('g-msg').textContent = 'Faltan las coordenadas de inicio y final.'; return; } await generarLibreta(path, LASTGEN ? LASTGEN.opt : {}); } catch (e) { $('g-msg').style.color = '#b45309'; $('g-msg').textContent = 'No se pudo regenerar: ' + e.message; } }); } else { w.hidden = true; w.innerHTML = ''; } } }
     { const P = an.pts, sl = []; if (an.hasEl) for (let i = 1; i < P.length; i++) { const dd = P[i].acu - P[i - 1].acu; if (dd > 0 && isFinite(P[i].el) && isFinite(P[i - 1].el)) sl.push(Math.abs((P[i].el - P[i - 1].el) / dd * 100)); }
       const hi = sl.filter((x) => x > 12).length; if (hi) h += '<br><span style="color:#b45309">⚠ <b>Pendientes:</b> ' + hi + ' de ' + sl.length + ' tramos pasan de 12 % (máximo ' + nf(Math.max.apply(null, sl), 1) + ' %). Un pavimento hidráulico rural normalmente no pasa de 12 a 15 %: verifica esas elevaciones en campo.</span>';
       try { const dp = datosPl(), la0 = parseCoord(dp.latI), lo0 = parseCoord(dp.lonI), la1 = parseCoord(dp.latF), lo1 = parseCoord(dp.lonF);
@@ -3339,17 +3341,18 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     const anc = CC ? Math.max(...CC.w) : (!vari && tip > 0 ? tip : (AV0.length ? AV0[0].w : NaN)); if (!CC && (!isFinite(anc) || anc <= 0 || anc > 30)) { m.style.color = '#b45309'; m.textContent = 'Escribe primero el ancho típico del camino (arriba, en los datos del proyecto).'; return; }
     let loc = path.map(([lo, la]) => [(lo - path[0][0]) * kx, (la - la0) * ky]), Lp = 0; for (let i = 1; i < loc.length; i++) Lp += Math.hypot(loc[i][0] - loc[i - 1][0], loc[i][1] - loc[i - 1][1]);
     if (Lp < 5) { m.style.color = '#b45309'; m.textContent = 'El inicio y el final están casi en el mismo punto: revisa las coordenadas.'; return; }
-    const larg = parseFloat($('p-largo').value); let nota = '', recortado = false;
-    if (CC) { const r = CC.L / Lp; loc = loc.map(([x, y]) => [x * r, y * r]); nota = 'Se respetaron las distancias y anchos del cuadro de construcción (largo ' + CC.L.toFixed(2) + ' m).' + (Math.abs(r - 1) > 0.15 ? ' Ojo: entre las coordenadas, siguiendo el trazo, hay ' + Lp.toFixed(1) + ' m; si el camino es curvo, trázalo sobre la imagen satelital para que el final coincida.' : ''); Lp = CC.L; $('p-largo').value = Lp.toFixed(2); $('p-largo').dispatchEvent(new Event('input', { bubbles: true })); }
+    const larg0 = parseFloat($('p-largo').value), larg = larg0 >= 5 ? larg0 : NaN; let nota = '', recortado = false;
+    if (opt.modo === 'forzar' && larg > 0 && !CC) { const r = larg / Lp; loc = loc.map(([x, y]) => [x * r, y * r]); nota = 'Mantuve tu largo de ' + larg.toFixed(2) + ' m (entre las coordenadas, en línea recta, hay ' + Lp.toFixed(1) + ' m). Si el camino es curvo, trázalo para que el final coincida.'; Lp = larg; }
+    else if (CC) { const r = CC.L / Lp; loc = loc.map(([x, y]) => [x * r, y * r]); nota = 'Se respetaron las distancias y anchos del cuadro de construcción (largo ' + CC.L.toFixed(2) + ' m).' + (Math.abs(r - 1) > 0.15 ? ' Ojo: entre las coordenadas, siguiendo el trazo, hay ' + Lp.toFixed(1) + ' m; si el camino es curvo, trázalo sobre la imagen satelital para que el final coincida.' : ''); Lp = CC.L; $('p-largo').value = Lp.toFixed(2); $('p-largo').dispatchEvent(new Event('input', { bubbles: true })); }
     else if (isFinite(larg) && larg > 0 && opt.modo !== 'todo' && Math.abs(larg / Lp - 1) > 0.15) { // el largo a trabajar no coincide con la distancia entre las coordenadas
       if (opt.modo === 'recortar' && larg < Lp) { // se conserva solo el tramo inicial de largo = largo a trabajar
         const nl = [loc[0]]; let acc = 0; for (let i = 1; i < loc.length; i++) { const sg = Math.hypot(loc[i][0] - loc[i - 1][0], loc[i][1] - loc[i - 1][1]); if (acc + sg >= larg - 1e-6) { const t = sg > 0 ? (larg - acc) / sg : 0; nl.push([loc[i - 1][0] + (loc[i][0] - loc[i - 1][0]) * t, loc[i - 1][1] + (loc[i][1] - loc[i - 1][1]) * t]); break; } acc += sg; nl.push(loc[i]); }
         loc = nl; Lp = larg; recortado = true; nota = 'Libreta recortada: solo los primeros ' + larg.toFixed(2) + ' m del trazo (largo a trabajar).';
       } else {
         const esc = (t) => String(t).replace(/</g, '&lt;'); m.style.color = '#b45309'; m.textContent = 'Falta decidir el largo.';
-        ask.hidden = false; ask.innerHTML = '<b>El largo no coincide con las coordenadas.</b><br>Entre las coordenadas de inicio y final (siguiendo el trazo) hay <b>' + Lp.toFixed(1) + ' m</b>, pero el largo a trabajar que escribiste es <b>' + larg.toFixed(1) + ' m</b>.<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' + (larg < Lp ? '<button type="button" class="chip" id="g-rec" style="font-weight:700">Usar solo los primeros ' + larg.toFixed(1) + ' m (largo a trabajar)</button>' : '') + '<button type="button" class="chip" id="g-todo">' + (larg < Lp ? 'Usar todo el trazo (' + Lp.toFixed(1) + ' m) y cambiar el largo' : 'Usar la distancia de las coordenadas (' + Lp.toFixed(1) + ' m) como largo') + '</button></div>' + (larg < Lp ? '<div style="margin-top:6px;font-size:12px;opacity:.85">Con la primera opción la libreta termina a ' + larg.toFixed(1) + ' m del inicio y las coordenadas del FINAL se actualizan a ese punto.</div>' : '');
+        ask.hidden = false; ask.innerHTML = '<b>El largo no coincide con las coordenadas.</b><br>Entre las coordenadas de inicio y final (siguiendo el trazo) hay <b>' + Lp.toFixed(1) + ' m</b>, pero el largo a trabajar que escribiste es <b>' + larg.toFixed(1) + ' m</b>.<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' + (larg < Lp ? '<button type="button" class="chip" id="g-rec" style="font-weight:700">Usar solo los primeros ' + larg.toFixed(1) + ' m (largo a trabajar)</button>' : '') + '<button type="button" class="chip" id="g-todo">' + (larg < Lp ? 'Usar todo el trazo (' + Lp.toFixed(1) + ' m) y cambiar el largo' : 'Usar la distancia de las coordenadas (' + Lp.toFixed(1) + ' m) como largo') + '</button><button type="button" class="chip" id="g-forz">Mantener mi largo de ' + larg.toFixed(1) + ' m (el camino es más curvo que la línea recta)</button></div>' + (larg < Lp ? '<div style="margin-top:6px;font-size:12px;opacity:.85">Con la primera opción la libreta termina a ' + larg.toFixed(1) + ' m del inicio y las coordenadas del FINAL se actualizan a ese punto.</div>' : '');
         const rr = (mo) => () => { generarLibreta(path, { modo: mo }).catch((e) => { m.style.color = '#b45309'; m.textContent = 'No se pudo generar: ' + e.message; }); };
-        if ($('g-rec')) $('g-rec').addEventListener('click', rr('recortar')); $('g-todo').addEventListener('click', rr('todo')); return;
+        if ($('g-rec')) $('g-rec').addEventListener('click', rr('recortar')); $('g-todo').addEventListener('click', rr('todo')); $('g-forz').addEventListener('click', rr('forzar')); return;
       }
     } else if (isFinite(larg) && larg > 0) { const r = larg / Lp; if (r > 0.85 && r < 1.15) { loc = loc.map(([x, y]) => [x * r, y * r]); Lp = larg; nota = 'Ajusté el trazo al largo que escribiste (' + larg.toFixed(2) + ' m).'; } else { $('p-largo').value = Lp.toFixed(2); $('p-largo').dispatchEvent(new Event('input', { bubbles: true })); nota = 'El largo se cambió a ' + Lp.toFixed(2) + ' m (el del trazo).'; } }
     let sp = Math.max(5, parseFloat($('g-sp').value) || 15); sp = Math.max(sp, Lp / 80);
