@@ -77,7 +77,7 @@ legend { font: 700 15px var(--font-display); letter-spacing: .1em; text-transfor
 .f { display: flex; flex-direction: column; gap: 3px; margin-bottom: 10px; min-width: 0; }
 .f label { font: 600 12px/1.2 var(--font-display); letter-spacing: .09em; text-transform: uppercase; color: var(--ink-2); }
 .f .hint { font-size: 12px; color: var(--ink-2); }
-input[type=text], input[type=number] {
+input[type=text], input[type=number], input[type=email], input[type=password] {
   width: 100%; min-width: 0; padding: 8px 9px; border: 1px solid var(--line); border-radius: 3px; background: var(--paper); color: var(--ink);
   font: 500 15px var(--font-num);
 }
@@ -192,7 +192,19 @@ body[data-modo=con] .m-sin{display:none!important}
     <div class="status" id="status" role="status"><i></i><span id="status-t">Cuadra con el monto</span></div>
   </div>
 
-  <div style="font-size:13px;margin:0 0 8px"><span id="modo-txt"></span> · <button type="button" class="link" id="modo-cambiar">Cambiar</button></div>
+  <details id="nube" class="f" style="margin:0 0 10px"><summary style="cursor:pointer;font-weight:600">☁ Nube: <span id="n-state">sin conectar</span></summary>
+  <div style="padding:8px 0">
+    <div id="n-cfg"><div class="f"><label for="n-url">Dirección de tu proyecto Supabase (Project URL)</label><input type="text" id="n-url" placeholder="https://xxxx.supabase.co" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+      <div class="f"><label for="n-key">Clave pública (anon public key)</label><input type="text" id="n-key" placeholder="eyJ..." autocapitalize="off" autocorrect="off" spellcheck="false"></div></div>
+    <div id="n-auth"><div class="row2"><div class="f"><label for="n-mail">Correo</label><input type="email" id="n-mail" autocapitalize="off"></div><div class="f"><label for="n-pass">Contraseña</label><input type="password" id="n-pass" autocomplete="current-password"></div></div>
+      <button type="button" class="link" id="n-in" style="font-weight:600">Entrar</button> · <button type="button" class="link" id="n-up">Crear mi cuenta</button></div>
+    <div id="n-proj" hidden>
+      <div style="margin-bottom:6px"><button type="button" class="link" id="n-save" style="font-weight:700">Guardar en la nube</button> · <button type="button" class="link" id="n-copy">Guardar como proyecto nuevo (copia / ampliación)</button> · <button type="button" class="link" id="n-list">Actualizar lista</button> · <button type="button" class="link" id="n-out">Salir</button></div>
+      <div id="n-lista" style="font-size:13px"></div></div>
+    <div id="n-msg" style="font-size:12px;margin-top:6px;color:var(--ink-2)"></div>
+    <div style="font-size:11px;opacity:.7;margin-top:4px">La nube funciona al abrir la página autónoma (Chrome, Edge o Safari), no dentro de la vista previa del artefacto. Tus proyectos solo los ves tú.</div>
+  </div></details>
+<div style="font-size:13px;margin:0 0 8px"><span id="modo-txt"></span> · <button type="button" class="link" id="modo-cambiar">Cambiar</button></div>
   <div class="strip" aria-hidden="true"><svg id="strip" height="64"></svg></div>
 
   <div class="grid">
@@ -3443,6 +3455,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   function persist() {
     const datos = {}; DATA_IDS.forEach((i) => { datos[i] = $(i).value; });
     store.set({ form: readForm(), prices, datos, est: $('p-lib').dataset.est === '1', modo: document.body.dataset.modo || '' });
+    if (typeof cloudMark === 'function') cloudMark();
     try { localStorage.setItem(IMG_KEY, JSON.stringify(IMGS)); } catch (e) { /* fotos y mapas muy pesados: se conservan solo en esta sesión */ }
   }
   function limpiarDatos() { DATA_IDS.forEach((i) => { $(i).value = i === 'g-sp' ? '15' : ''; }); $('p-lib').dataset.est = '0'; Object.keys(IMGS).forEach((k) => delete IMGS[k]); ['g-out'].forEach((i) => { $(i).value = ''; $(i).style.display = 'none'; }); try { localStorage.removeItem(IMG_KEY); } catch (e) { /* sin almacenamiento */ } infoImgs(); }
@@ -3480,13 +3493,53 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   document.querySelectorAll('#form input, #form select').forEach((i) => i.addEventListener('input', () => { if (i.id === 'p-ter') $('f-corte').hidden = !i.checked; schedule(); }));
   document.querySelectorAll('[data-ex]').forEach((b) => b.addEventListener('click', () => { limpiarDatos(); setForm(EXAMPLES[b.dataset.ex]); persist(); recompute(); }));
 
+
+  /* ---- nube (Supabase): cuenta, proyectos guardados, fotos y mapas ---- */
+  const CK = 'pcr:cloud3', cloud = { url: '', key: '', ses: null, pid: null, dirty: false };
+  try { const c = JSON.parse(localStorage.getItem(CK) || 'null'); if (c) { cloud.url = c.url || ''; cloud.key = c.key || ''; cloud.ses = c.ses || null; cloud.pid = c.pid || null; } } catch (e) { /* sin datos de nube */ }
+  const csave = () => { try { localStorage.setItem(CK, JSON.stringify({ url: cloud.url, key: cloud.key, ses: cloud.ses, pid: cloud.pid })); } catch (e) { /* sin almacenamiento */ } };
+  const nmsg = (t, bad) => { $('n-msg').textContent = t; $('n-msg').style.color = bad ? '#b45309' : ''; };
+  function cstate() { const ok = cloud.url && cloud.key, on = !!cloud.ses; $('n-cfg').hidden = !!(ok && on); $('n-auth').hidden = !ok || on; $('n-proj').hidden = !on;
+    $('n-state').textContent = !ok ? 'sin conectar' : !on ? 'inicia sesión' : (cloud.ses.email || 'conectado') + (cloud.pid ? (cloud.dirty ? ' · cambios sin guardar' : ' · proyecto guardado') : ' · proyecto sin guardar'); }
+  window.cloudMark = () => { if (cloud.pid && !cloud.dirty) { cloud.dirty = true; cstate(); } };
+  async function crefresh() { if (!cloud.ses || !cloud.ses.refresh_token) return false; try { const r = await fetch(cloud.url + '/auth/v1/token?grant_type=refresh_token', { method: 'POST', headers: { apikey: cloud.key, 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: cloud.ses.refresh_token }) }); if (!r.ok) return false; csess(await r.json()); return true; } catch (e) { return false; } }
+  function csess(j) { cloud.ses = { access_token: j.access_token, refresh_token: j.refresh_token, user_id: (j.user || {}).id || (cloud.ses && cloud.ses.user_id), email: (j.user || {}).email || (cloud.ses && cloud.ses.email) }; csave(); }
+  async function creq(path, o) { o = o || {}; const go = () => { const h = Object.assign({ apikey: cloud.key, Authorization: 'Bearer ' + (cloud.ses ? cloud.ses.access_token : cloud.key) }, o.headers || {}); let b = o.body; if (b !== undefined && !o.raw) { h['Content-Type'] = 'application/json'; b = JSON.stringify(b); } return fetch(cloud.url + path, { method: o.method || 'GET', headers: h, body: b }); };
+    let r = await go(); if (r.status === 401 && cloud.ses && await crefresh()) r = await go(); if (!r.ok) { let m = ''; try { const j = await r.json(); m = j.message || j.error_description || j.msg || j.error || ''; } catch (e) { /* sin detalle */ } throw new Error((m || 'Error ' + r.status) + (r.status === 401 ? ' (vuelve a iniciar sesión)' : '')); } return r; }
+  function snapshot() { const datos = {}; DATA_IDS.forEach((i) => { datos[i] = $(i).value; }); return { form: readForm(), datos, est: $('p-lib').dataset.est === '1', modo: document.body.dataset.modo || 'con', prices }; }
+  function restaurar(s) { limpiarDatos(); setForm(s.form); DATA_IDS.forEach((i) => { if (s.datos && s.datos[i] != null) $(i).value = s.datos[i]; }); $('p-lib').dataset.est = s.est ? '1' : '0'; prices = s.prices || {}; setModo(s.modo === 'sin' ? 'sin' : 'con'); }
+  async function clista() { const r = await creq('/rest/v1/pcr_proyectos?select=id,nombre,municipio,departamento,monto,updated_at&order=updated_at.desc'), rows = await r.json(), box = $('n-lista');
+    box.innerHTML = rows.length ? rows.map((p) => '<div style="display:flex;gap:8px;align-items:center;padding:5px 0;border-top:1px solid var(--line,#ccc);flex-wrap:wrap' + (p.id === cloud.pid ? ';background:rgba(37,99,235,.08)' : '') + '"><div style="flex:1;min-width:200px"><b>' + esc(p.nombre || 'Sin nombre') + '</b><br><span style="opacity:.75;font-size:12px">' + esc([p.municipio, p.departamento].filter(Boolean).join(', ')) + (p.monto ? ' · Q ' + nf(p.monto, 2) : '') + ' · ' + new Date(p.updated_at).toLocaleString('es-GT') + '</span></div><button type="button" class="link" data-ab="' + p.id + '" style="font-weight:600">Abrir</button><button type="button" class="link" data-el="' + p.id + '">Eliminar</button></div>').join('') : '<i>Todavía no hay proyectos guardados.</i>'; }
+  async function cguardar(copia) { if (!cloud.ses) return; nmsg('Guardando…'); const s = snapshot(), f = s.form, row = { nombre: f.nombre || 'Proyecto sin nombre', municipio: f.mun || null, departamento: f.dep || null, monto: isFinite(f.monto) ? f.monto : null, datos: s, updated_at: new Date().toISOString() };
+    let id = copia ? null : cloud.pid;
+    if (id) { const rows = await (await creq('/rest/v1/pcr_proyectos?id=eq.' + id + '&select=id', { method: 'PATCH', body: row, headers: { Prefer: 'return=representation' } })).json(); if (!rows.length) id = null; }
+    if (!id) id = (await (await creq('/rest/v1/pcr_proyectos?select=id', { method: 'POST', body: row, headers: { Prefer: 'return=representation' } })).json())[0].id;
+    if (Object.keys(IMGS).length) await creq('/storage/v1/object/pcr-proyectos/' + cloud.ses.user_id + '/' + id + '/imgs.json', { method: 'POST', raw: true, body: JSON.stringify(IMGS), headers: { 'Content-Type': 'application/json', 'x-upsert': 'true' } });
+    cloud.pid = id; cloud.dirty = false; csave(); cstate(); await clista(); nmsg('Guardado en la nube (' + new Date().toLocaleTimeString('es-GT') + ').'); }
+  async function cabrir(id) { nmsg('Abriendo…'); const rows = await (await creq('/rest/v1/pcr_proyectos?id=eq.' + id + '&select=datos')).json(); if (!rows.length) throw new Error('No encontré ese proyecto.'); restaurar(rows[0].datos);
+    try { const r = await creq('/storage/v1/object/authenticated/pcr-proyectos/' + cloud.ses.user_id + '/' + id + '/imgs.json'); Object.assign(IMGS, await r.json()); } catch (e) { /* sin fotos guardadas */ } infoImgs(); cloud.pid = id; cloud.dirty = false; csave(); persist(); cloud.dirty = false; cstate(); await clista(); nmsg('Proyecto abierto.'); }
+  async function celim(id) { if (!confirm('¿Eliminar este proyecto de la nube? No se puede deshacer.')) return; await creq('/rest/v1/pcr_proyectos?id=eq.' + id, { method: 'DELETE' }); try { await creq('/storage/v1/object/pcr-proyectos/' + cloud.ses.user_id + '/' + id + '/imgs.json', { method: 'DELETE' }); } catch (e) { /* sin fotos */ } if (cloud.pid === id) { cloud.pid = null; csave(); } cstate(); await clista(); nmsg('Proyecto eliminado.'); }
+  const wrapc = (fn) => async (...a) => { try { await fn(...a); } catch (e) { nmsg('No se pudo: ' + (e.message === 'Failed to fetch' ? 'sin conexión o dirección incorrecta' : e.message), true); } };
+  function ccfg() { cloud.url = $('n-url').value.trim().replace(/\/+$/, '').replace(/\/rest\/v1.*$/, ''); cloud.key = $('n-key').value.trim(); csave(); }
+  async function cauth(up) { ccfg(); if (!/^https:\/\/.+/.test(cloud.url) || cloud.key.length < 20) { cstate(); nmsg('Escribe la dirección (https://…supabase.co) y la clave pública.', true); return; } const email = $('n-mail').value.trim(), password = $('n-pass').value; if (!email || password.length < 6) { nmsg('Escribe tu correo y una contraseña de al menos 6 caracteres.', true); return; }
+    nmsg(up ? 'Creando cuenta…' : 'Entrando…'); const r = await fetch(cloud.url + (up ? '/auth/v1/signup' : '/auth/v1/token?grant_type=password'), { method: 'POST', headers: { apikey: cloud.key, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) }), j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.msg || j.error_description || j.message || 'Error ' + r.status);
+    if (!j.access_token) { nmsg('Cuenta creada. Revisa tu correo para confirmarla y luego pulsa Entrar (o desactiva "Confirm email" en Supabase).'); return; }
+    csess(j); $('n-pass').value = ''; cstate(); await clista(); nmsg('Sesión iniciada.'); }
+  $('n-url').value = cloud.url; $('n-key').value = cloud.key;
+  ['n-url', 'n-key'].forEach((i) => $(i).addEventListener('input', () => { ccfg(); cstate(); }));
+  $('n-in').addEventListener('click', wrapc(() => cauth(false))); $('n-up').addEventListener('click', wrapc(() => cauth(true)));
+  $('n-out').addEventListener('click', () => { cloud.ses = null; cloud.pid = null; cloud.dirty = false; csave(); cstate(); $('n-lista').innerHTML = ''; nmsg('Sesión cerrada.'); });
+  $('n-save').addEventListener('click', wrapc(() => cguardar(false))); $('n-copy').addEventListener('click', wrapc(() => cguardar(true))); $('n-list').addEventListener('click', wrapc(clista));
+  $('n-lista').addEventListener('click', wrapc(async (e) => { const a = e.target.closest('[data-ab]'), d = e.target.closest('[data-el]'); if (a) await cabrir(a.dataset.ab); else if (d) await celim(d.dataset.el); }));
+  cstate(); if (cloud.ses) clista().catch(() => nmsg('Sesión guardada; si no ves tus proyectos, vuelve a entrar.'));
   /* ---- modo: con / sin topografía ---- */
   function setModo(m) { document.body.dataset.modo = m; $('modo-ov').hidden = true; $('modo-txt').textContent = m === 'sin' ? 'Modo: sin topografía (libreta estimada)' : 'Modo: con topografía'; if (m === 'sin') { $('p-libu').checked = true; if (!$('p-lib').value.trim()) $('p-lib').dataset.est = '1'; } else { $('p-libu').checked = true; } try { persist(); recompute(); } catch (e) {} }
   $('m-con').addEventListener('click', () => setModo('con'));
   $('m-sin').addEventListener('click', () => setModo('sin'));
   $('modo-cambiar').addEventListener('click', () => { $('modo-ov').hidden = false; });
   document.body.dataset.modo = 'con';
-  try { const sv = store.get(); if (sv && (sv.modo === 'con' || sv.modo === 'sin')) setModo(sv.modo); } catch (e) { /* sin modo guardado */ }
+  $('modo-ov').hidden = false; // siempre pregunta al abrir
   recompute();
   try {
     if (window.claude && window.claude.use) window.claude.use('downloads').then((d) => { dl = d; dlReady = true; recompute(true); }, () => { dlReady = true; recompute(true); });
