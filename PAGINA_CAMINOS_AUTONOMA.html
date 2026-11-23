@@ -167,6 +167,13 @@ summary .m { font: 600 13px var(--font-num); white-space: nowrap; }
 .foot { margin-top: 18px; font-size: 13px; color: var(--ink-2); max-width: 90ch; }
 .link { background: none; border: 0; color: var(--accent); text-decoration: underline; padding: 0; font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+#g-trazo .trbar{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+#g-trazo .trbar button{padding:10px 14px;border-radius:8px;border:1px solid #64748b;background:#1e293b;color:#fff;font-weight:600;font-size:14px;cursor:pointer}
+#g-trazo .trbar button.trok{background:#166534;border-color:#22c55e}
+#g-trazo.trfull{position:fixed;inset:0;z-index:9999;background:#111;margin:0!important;display:block!important}
+#g-trazo.trfull #g-cv{position:absolute;left:0;top:0;border:0!important;border-radius:0;max-width:none!important}
+#g-trazo.trfull .trbar{position:absolute;left:8px;right:8px;top:8px;z-index:2;background:rgba(0,0,0,.7);padding:8px;border-radius:10px;margin:0}
+#g-trazo.trfull .trhint{display:none}
 body[data-modo=sin] .m-con{display:none!important}
 body[data-modo=con] .m-sin{display:none!important}
 #modo-ov{position:fixed;inset:0;background:rgba(20,24,28,.78);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px}
@@ -233,7 +240,7 @@ body[data-modo=con] .m-sin{display:none!important}
         <legend>Camino</legend>
         <div class="row2">
           <div class="f"><label for="p-largo">Largo (m)</label><input type="number" id="p-largo" inputmode="decimal" step="any" min="0"></div>
-          <div class="f"><label for="p-ancho">Ancho típico (m)</label><input type="number" id="p-ancho" inputmode="decimal" step="any" min="0"></div>
+          <div class="f"><label for="p-ancho">Ancho típico (m)</label><input type="number" id="p-ancho" inputmode="decimal" step="any" min="0"><label class="check" style="margin-top:6px"><input type="checkbox" id="p-avar"> El ancho es variable (se define por zonas en «Anchos variables»)</label><div id="anc-fix" hidden style="font-size:12px;margin-top:4px;color:#b45309">¿Quisiste escribir 5.20? Un camino no mide <span id="anc-fix-v"></span> m de ancho. <button type="button" class="link" id="b-anc-fix" style="font-weight:700"></button></div></div>
         </div>
         <div class="f"><label for="p-sep">Separación de juntas (m)</label><input type="number" id="p-sep" inputmode="decimal" step="any" min="0"></div>
       </fieldset>
@@ -251,9 +258,9 @@ body[data-modo=con] .m-sin{display:none!important}
           <div id="g-ask" hidden style="margin-top:8px;padding:10px;border:2px solid #b45309;border-radius:8px;font-size:13px"></div>
           <textarea id="g-out" rows="6" readonly spellcheck="false" style="margin-top:6px;display:none;font-size:12px" aria-label="Libreta estimada generada"></textarea>
           <div id="g-trazo" style="display:none;margin-top:8px">
-            <div style="font-size:12px;margin-bottom:4px"><b>Arrastra</b> los puntos verde y azul para ponerlos exactamente sobre el camino (las coordenadas se actualizan solas). Toca sobre el camino, de <b style="color:#16a34a">inicio (verde)</b> a <b style="color:#2563eb">final (azul)</b>, cada vez que cambie de dirección. Más puntos = más fiel.</div>
-            <canvas id="g-cv" width="1000" height="700" style="width:100%;max-width:900px;border:1px solid var(--line,#999);border-radius:6px;touch-action:manipulation;background:#222"></canvas>
-            <div style="margin-top:6px"><button type="button" id="b-g-undo" class="link">Deshacer último punto</button> <button type="button" id="b-g-clear" class="link" style="margin-left:10px">Borrar trazo</button> <button type="button" id="b-g-ok" class="link" style="font-weight:700;margin-left:10px">Usar este trazo y generar la libreta</button></div>
+            <div class="trhint" style="font-size:12px;margin-bottom:4px"><b>Arrastra</b> los puntos verde y azul hasta ponerlos sobre el camino (las coordenadas se actualizan solas). <b>Toca el mapa</b> para agregar estaciones, del inicio al final; si tocas sobre la línea roja se inserta entre dos puntos. <b>Mantén presionado</b> un punto para borrarlo. <b>Pellizca</b> para acercar y arrastra el mapa para moverte. Con «Ampliar» el mapa ocupa toda la pantalla.</div>
+            <canvas id="g-cv" width="900" height="700" style="display:block;width:100%;max-width:900px;border:1px solid var(--line,#999);border-radius:6px;touch-action:none;background:#222"></canvas>
+            <div class="trbar"><button type="button" id="b-g-full">Ampliar (pantalla completa)</button><button type="button" id="b-g-zout">−</button><button type="button" id="b-g-zin">+</button><button type="button" id="b-g-fit">Ajustar vista</button><button type="button" id="b-g-undo">Deshacer último</button><button type="button" id="b-g-reset">Volver a mis coordenadas</button><button type="button" id="b-g-clear">Borrar trazo</button><button type="button" id="b-g-ok" class="trok">Usar este trazo y generar la libreta</button></div>
           </div>
         </details>
         <details class="f m-sin" id="avbox" open><summary style="cursor:pointer;font-weight:600">Anchos variables (opcional)</summary>
@@ -2934,12 +2941,14 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   const nf = (n, d = 2) => Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+  function avUI() { const on = $('p-avar').checked; $('p-ancho').disabled = on; $('p-ancho').placeholder = on ? 'Variable' : ''; if (on) $('avbox').open = true;
+    const a = parseFloat($('p-ancho').value), bad = !on && a >= 100 && a <= 3000; $('anc-fix').hidden = !bad; if (bad) { $('anc-fix-v').textContent = a; $('b-anc-fix').textContent = 'Cambiar a ' + (a / 100).toFixed(2) + ' m'; } }
   function setForm(v) {
     $('p-nombre').value = v.nombre; window._setDepMun(v.dep, v.mun);
     $('p-monto').value = v.monto; $('p-seg').value = v.seg;
     $('p-largo').value = v.largo; $('p-ancho').value = v.ancho; $('p-sep').value = v.sep;
     $('p-remc').checked = v.remn > 0; $('p-remn').value = v.remn || 2; $('p-remw').value = v.remw; $('f-rem').hidden = !(v.remn > 0); $('rem-none').hidden = v.remn > 0; $('p-ter').checked = !!v.ter; $('p-corte').value = v.corte;
-    $('f-corte').hidden = !v.ter; $('p-lib').value = v.lib || ''; $('p-libu').checked = v.libu !== false; try { chkDep(); } catch (e) { /* aún sin lista */ }
+    $('f-corte').hidden = !v.ter; $('p-lib').value = v.lib || ''; $('p-libu').checked = v.libu !== false; $('p-avar').checked = !!v.avar; $('g-av').value = v.av || ''; try { avUI(); } catch (e) { /* aún sin cargar */ } try { chkDep(); } catch (e) { /* aún sin lista */ }
   }
   function analizarLibreta(v) {
     const box = $('lib-sum'); box.innerHTML = '';
@@ -2989,7 +2998,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   function readForm() {
     const n = (id) => { const x = parseFloat($(id).value); return isFinite(x) ? x : NaN; };
     return { nombre: $('p-nombre').value.trim(), mun: $('p-mun').value.trim(), dep: normDep($('p-dep').value), monto: n('p-monto'), seg: n('p-seg'),
-      largo: n('p-largo'), ancho: n('p-ancho'), sep: n('p-sep'), remn: $('p-remc').checked ? (parseInt($('p-remn').value, 10) || 1) : 0, remw: $('p-remw').value.trim(), ter: $('p-ter').checked, corte: n('p-corte'), lib: $('p-lib').value, libu: $('p-libu').checked, libEst: $('p-lib').dataset.est === '1' };
+      largo: n('p-largo'), ancho: n('p-ancho'), sep: n('p-sep'), remn: $('p-remc').checked ? (parseInt($('p-remn').value, 10) || 1) : 0, remw: $('p-remw').value.trim(), ter: $('p-ter').checked, corte: n('p-corte'), lib: $('p-lib').value, libu: $('p-libu').checked, avar: $('p-avar').checked, av: $('g-av').value, libEst: $('p-lib').dataset.est === '1' };
   }
   function validate(v) {
     const bad = [];
@@ -2997,7 +3006,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     need('p-monto', v.monto >= 50000, 'el monto asignado');
     need('p-seg', v.seg > 100, 'el precio por m²');
     need('p-largo', v.largo > 5, 'el largo del camino');
-    need('p-ancho', v.ancho > 2, 'el ancho típico');
+    need('p-ancho', v.ancho > 2 && v.ancho <= 30, v.avar ? 'los anchos variables (genera la libreta con las zonas de «Anchos variables»)' : (v.ancho > 30 ? 'el ancho típico (parece muy grande, ¿5.20?)' : 'el ancho típico'));
     need('p-sep', v.sep >= 1 && v.sep <= 6, 'la separación de juntas');
     need('p-corte', !v.ter || v.corte > 0, 'el volumen de corte');
     return bad;
@@ -3325,7 +3334,9 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   }
   async function generarLibreta(path, opt) { // path: [[lon,lat],...] de inicio a final; opt.modo: 'recortar' | 'todo'
     opt = opt || {}; LASTGEN = { path, opt }; const m = $('g-msg'), ask = $('g-ask'); ask.hidden = true; ask.innerHTML = ''; m.style.color = ''; const dp = datosPl(), la0 = path[0][1], kx = 111320 * Math.cos(la0 * Math.PI / 180), ky = 111320;
-    const CC = parseCC($('g-cc') ? $('g-cc').value : ''), anc = CC ? Math.max(...CC.w) : parseFloat($('p-ancho').value); if (!CC && (!isFinite(anc) || anc <= 0)) { m.style.color = '#b45309'; m.textContent = 'Escribe primero el ancho típico del camino (arriba, en los datos del proyecto).'; return; }
+    const CC = parseCC($('g-cc') ? $('g-cc').value : ''), AV0 = parseAV($('g-av').value), vari = $('p-avar').checked, tip = parseFloat($('p-ancho').value);
+    if (vari && !AV0.length && !CC) { m.style.color = '#b45309'; m.textContent = 'Marcaste «ancho variable»: anota abajo, en «Anchos variables», las zonas (desde, hasta, ancho) y vuelve a generar.'; $('avbox').open = true; return; }
+    const anc = CC ? Math.max(...CC.w) : (!vari && tip > 0 ? tip : (AV0.length ? AV0[0].w : NaN)); if (!CC && (!isFinite(anc) || anc <= 0 || anc > 30)) { m.style.color = '#b45309'; m.textContent = 'Escribe primero el ancho típico del camino (arriba, en los datos del proyecto).'; return; }
     let loc = path.map(([lo, la]) => [(lo - path[0][0]) * kx, (la - la0) * ky]), Lp = 0; for (let i = 1; i < loc.length; i++) Lp += Math.hypot(loc[i][0] - loc[i - 1][0], loc[i][1] - loc[i - 1][1]);
     if (Lp < 5) { m.style.color = '#b45309'; m.textContent = 'El inicio y el final están casi en el mismo punto: revisa las coordenadas.'; return; }
     const larg = parseFloat($('p-largo').value); let nota = '', recortado = false;
@@ -3347,7 +3358,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     let ss = []; if (CC) ss = CC.s.slice(); else { for (let s = 0; s < Lp - sp * 0.35; s += sp) ss.push(s); ss.push(Lp); }
     const AV = CC ? [] : parseAV($('g-av') ? $('g-av').value : '');
     if (AV.length) { AV.forEach((z) => [z.a, z.b].forEach((q) => { if (q > 0.3 && q < Lp - 0.3) ss.push(q); })); ss.sort((p, q) => p - q); const t = [ss[0]]; for (let i = 1; i < ss.length; i++) if (ss[i] - t[t.length - 1] > 0.3) t.push(ss[i]); ss = t; }
-    const wAt = (q) => { const z = AV.find((k) => q >= k.a - 1e-6 && q <= k.b + 1e-6); return z ? z.w : anc; };
+    const wAt = (q) => { const z = AV.find((k) => q >= k.a - 1e-6 && q <= k.b + 1e-6); if (z) return z.w; if (!vari) return anc; let bz = AV[0], bd = 1e9; AV.forEach((k) => { const d = Math.min(Math.abs(q - k.a), Math.abs(q - k.b)); if (d < bd) { bd = d; bz = k; } }); return bz.w; };
     const P = ss.map((s) => at(s)), LL = P.map(([x, y]) => [path[0][0] + x / kx, la0 + y / ky]);
     if (recortado) { const f = (v, h) => { v = Math.abs(v); let dg = Math.floor(v), mm = Math.floor((v - dg) * 60), ss2 = Math.round(((v - dg) * 60 - mm) * 60 * 100) / 100; if (ss2 >= 60) { ss2 = 0; mm++; } if (mm >= 60) { mm = 0; dg++; } return dg + '°' + String(mm).padStart(2, '0') + "'" + ss2.toFixed(2).padStart(5, '0') + '"' + h; }, uL = LL[LL.length - 1]; $('d-latF').value = f(uL[1], uL[1] >= 0 ? 'N' : 'S'); $('d-lonF').value = f(uL[0], uL[0] >= 0 ? 'E' : 'O'); $('d-latF').dispatchEvent(new Event('input', { bubbles: true })); $('d-lonF').dispatchEvent(new Event('input', { bubbles: true })); }
     m.textContent = 'Consultando las elevaciones del terreno…'; let el = null;
@@ -3370,39 +3381,66 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     if (habiaMapa) { delete IMGS.mapa; try { infoImgs(); } catch (e) { /* sin panel */ } if ($('p-mun').value.trim()) setTimeout(() => $('b-mapa').click(), 50); } // el mapa de ubicación anterior ya no coincide con el nuevo trazo
     m.style.color = el ? '#166534' : '#b45309'; m.textContent = 'Libreta estimada lista: ' + P.length + ' estaciones, largo ' + Lp.toFixed(2) + ' m' + (el ? ', desnivel ' + (Math.max(...el) - Math.min(...el)).toFixed(1) + ' m (de ' + el[0].toFixed(1) + ' a ' + el[el.length - 1].toFixed(1) + ' m).' : '. No se pudieron consultar las elevaciones (necesita internet): la libreta quedó sin elevación, escríbelas a mano.') + ' ' + nota + ' Estimación con modelo digital de terreno (±5 a 15 m): verifícala con topografía real antes de entregar.';
   }
+  $('p-avar').addEventListener('change', avUI); $('p-ancho').addEventListener('input', avUI); $('b-anc-fix').addEventListener('click', () => { const a = parseFloat($('p-ancho').value); if (a > 0) { $('p-ancho').value = (a / 100).toFixed(2); $('p-ancho').dispatchEvent(new Event('input', { bubbles: true })); } });
   $('b-av').addEventListener('click', async () => { const m = $('av-msg'); m.style.color = ''; if (!LASTGEN) { m.style.color = '#b45309'; m.textContent = 'Primero genera la libreta (en línea recta o trazando el camino) y luego aplica los anchos.'; return; } const z = parseAV($('g-av').value); if (!z.length && $('g-av').value.trim()) { m.style.color = '#b45309'; m.textContent = 'No entendí las líneas. Usa: desde, hasta, ancho (por ejemplo 0 40 5.20).'; return; } try { await generarLibreta(LASTGEN.path, LASTGEN.opt); m.style.color = '#166534'; m.textContent = z.length ? 'Listo: libreta regenerada con ' + z.length + ' zona(s) de ancho variable. Revisa la tabla de la libreta y el plano.' : 'Listo: libreta regenerada con el ancho típico.'; } catch (e) { m.style.color = '#b45309'; m.textContent = 'No se pudo regenerar: ' + e.message; } });
   function coordsIF() { const dp = datosPl(), la0 = parseCoord(dp.latI), lo0 = -parseCoord(dp.lonI), la1 = parseCoord(dp.latF), lo1 = -parseCoord(dp.lonF); if (![la0, lo0, la1, lo1].every(isFinite)) return null; return [[lo0, la0], [lo1, la1]]; }
   $('b-gen-recta').addEventListener('click', async () => { const c = coordsIF(); if (!c) { $('g-msg').style.color = '#b45309'; $('g-msg').textContent = 'Faltan las coordenadas de inicio y final (latitud y longitud).'; return; } try { await generarLibreta(c); } catch (e) { $('g-msg').style.color = '#b45309'; $('g-msg').textContent = 'No se pudo generar: ' + e.message; } });
-  const TR = { pts: [], z: 0, cx: 0, cy: 0, W: 1000, H: 700, base: null, ends: null };
+  const TR = { pts: [], ends: null, orig: null, clo: 0, cla: 0, zf: 16, W: 900, H: 700, base: null, full: false, ok: 0, bad: 0, setting: false, dpr: 1 };
   const tLon = (px, z) => px / (256 * Math.pow(2, z)) * 360 - 180, tLat = (py, z) => { const n = Math.PI - 2 * Math.PI * py / (256 * Math.pow(2, z)); return 180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))); };
-  function trDraw() { const cv = $('g-cv'), g = cv.getContext('2d'); g.drawImage(TR.base, 0, 0); const E = TR.ends, X = (lo) => wx(lo, TR.z) - TR.cx + TR.W / 2, Y = (la) => wy(la, TR.z) - TR.cy + TR.H / 2, all = [E[0]].concat(TR.pts, [E[1]]);
-    g.lineJoin = 'round'; g.lineCap = 'round'; g.beginPath(); all.forEach(([lo, la], i) => (i ? g.lineTo(X(lo), Y(la)) : g.moveTo(X(lo), Y(la)))); g.strokeStyle = '#fff'; g.lineWidth = 8; g.stroke(); g.strokeStyle = '#e11d1d'; g.lineWidth = 4; g.stroke();
-    TR.pts.forEach(([lo, la], i) => { g.beginPath(); g.arc(X(lo), Y(la), 7, 0, 7); g.fillStyle = '#fff'; g.fill(); g.lineWidth = 2; g.strokeStyle = '#e11d1d'; g.stroke(); g.fillStyle = '#000'; g.font = 'bold 14px Arial'; g.fillText(String(i + 1), X(lo) + 9, Y(la) - 9); });
-    [[E[0], '#16a34a', 'INICIO'], [E[1], '#2563eb', 'FINAL']].forEach(([[lo, la], col, tx]) => { g.beginPath(); g.arc(X(lo), Y(la), 10, 0, 7); g.fillStyle = '#fff'; g.fill(); g.beginPath(); g.arc(X(lo), Y(la), 7, 0, 7); g.fillStyle = col; g.fill(); g.font = 'bold 15px Arial'; g.lineWidth = 4; g.strokeStyle = '#fff'; g.strokeText(tx, X(lo) + 12, Y(la) + 5); g.fillStyle = '#000'; g.fillText(tx, X(lo) + 12, Y(la) + 5); }); }
-  $('b-gen-trazo').addEventListener('click', async () => {
+  const tileCache = new Map();
+  function trView() { const zt = Math.min(19, Math.max(10, Math.round(TR.zf))), s = Math.pow(2, TR.zf - zt), cxw = wx(TR.clo, zt), cyw = wy(TR.cla, zt);
+    return { zt, s, cxw, cyw, X: (lo) => (wx(lo, zt) - cxw) * s + TR.W / 2, Y: (la) => (wy(la, zt) - cyw) * s + TR.H / 2, LL: (x, y) => [tLon((x - TR.W / 2) / s + cxw, zt), tLat((y - TR.H / 2) / s + cyw, zt)] }; }
+  function trSize() { const cv = $('g-cv'), dpr = Math.min(2, window.devicePixelRatio || 1), pw = Math.min(900, cv.parentNode.clientWidth || 900); TR.W = TR.full ? window.innerWidth : pw; TR.H = TR.full ? window.innerHeight : Math.round(pw * 0.78); TR.dpr = dpr; cv.style.width = TR.W + 'px'; cv.style.height = TR.H + 'px'; cv.width = Math.round(TR.W * dpr); cv.height = Math.round(TR.H * dpr); }
+  let trRaf = 0; function trReq() { if (!trRaf) trRaf = requestAnimationFrame(() => { trRaf = 0; trDraw(); }); }
+  function trTile(z, x, y) { const n = Math.pow(2, z); if (y < 0 || y >= n) return null; const xx = ((x % n) + n) % n, k = z + '/' + xx + '/' + y, c = tileCache.get(k); if (c) return c.img;
+    tileCache.set(k, { img: null }); fetch('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/' + z + '/' + y + '/' + xx, { mode: 'cors' }).then((r) => { if (!r.ok) throw new Error('http'); return r.blob(); }).then((b) => createImageBitmap(b)).then((im) => { tileCache.set(k, { img: im }); TR.ok++; if (tileCache.size > 400) tileCache.delete(tileCache.keys().next().value); trReq(); })
+      .catch(() => { TR.bad++; setTimeout(() => { const q = tileCache.get(k); if (q && !q.img) tileCache.delete(k); }, 8000); if (!TR.ok && TR.bad >= 4) { $('g-msg').style.color = '#b45309'; $('g-msg').textContent = 'No se pudo descargar la imagen satelital (necesita internet; abre la página autónoma directamente en Chrome, Edge o Safari). Puedes usar “Generar en línea recta”.'; } }); return null; }
+  function trDraw() { if (!TR.base || !TR.ends) return; const cv = $('g-cv'), g = cv.getContext('2d'), V = trView(); g.setTransform(TR.dpr, 0, 0, TR.dpr, 0, 0); g.fillStyle = '#222'; g.fillRect(0, 0, TR.W, TR.H);
+    const tx0 = Math.floor((V.cxw - TR.W / 2 / V.s) / 256), tx1 = Math.floor((V.cxw + TR.W / 2 / V.s) / 256), ty0 = Math.floor((V.cyw - TR.H / 2 / V.s) / 256), ty1 = Math.floor((V.cyw + TR.H / 2 / V.s) / 256);
+    for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const im = trTile(V.zt, tx, ty); if (im) g.drawImage(im, (tx * 256 - V.cxw) * V.s + TR.W / 2, (ty * 256 - V.cyw) * V.s + TR.H / 2, 256 * V.s + 0.6, 256 * V.s + 0.6); }
+    const E = TR.ends, all = [E[0]].concat(TR.pts, [E[1]]), S = all.map(([lo, la]) => [V.X(lo), V.Y(la)]);
+    g.lineJoin = 'round'; g.lineCap = 'round'; g.beginPath(); S.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.strokeStyle = '#fff'; g.lineWidth = 8; g.stroke(); g.strokeStyle = '#e11d1d'; g.lineWidth = 4; g.stroke();
+    TR.pts.forEach((p, i) => { const [x, y] = S[i + 1]; g.beginPath(); g.arc(x, y, 10, 0, 7); g.fillStyle = '#fff'; g.fill(); g.lineWidth = 2.5; g.strokeStyle = '#e11d1d'; g.stroke(); g.fillStyle = '#000'; g.font = 'bold 15px Arial'; g.lineWidth = 4; g.strokeStyle = '#fff'; g.strokeText(String(i + 1), x + 12, y - 12); g.fillText(String(i + 1), x + 12, y - 12); });
+    [[S[0], '#16a34a', 'INICIO'], [S[S.length - 1], '#2563eb', 'FINAL']].forEach(([[x, y], col, tx]) => { g.beginPath(); g.arc(x, y, 15, 0, 7); g.fillStyle = '#fff'; g.fill(); g.beginPath(); g.arc(x, y, 11, 0, 7); g.fillStyle = col; g.fill(); g.font = 'bold 16px Arial'; g.lineWidth = 4; g.strokeStyle = '#fff'; g.strokeText(tx, x + 18, y + 6); g.fillStyle = '#000'; g.fillText(tx, x + 18, y + 6); });
+    const mpp = 156543.03392 * Math.cos(TR.cla * Math.PI / 180) / Math.pow(2, TR.zf); let bm = 10; for (const q of [5, 10, 20, 50, 100, 200, 500]) if (q / mpp < TR.W * 0.25) bm = q; const bw = bm / mpp, by = TR.H - 18, bx = 14; g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(bx - 6, by - 20, bw + 12 + 46, 30); g.fillStyle = '#fff'; g.fillRect(bx, by - 4, bw, 4); g.font = 'bold 13px Arial'; g.fillText(bm + ' m', bx + bw + 6, by); }
+  function trFit() { const all = [TR.ends[0]].concat(TR.pts, [TR.ends[1]]), z0 = 18, xs = all.map((p) => wx(p[0], z0)), ys = all.map((p) => wy(p[1], z0)), w = Math.max(...xs) - Math.min(...xs), h = Math.max(...ys) - Math.min(...ys); let zf = z0; if (w > 1 || h > 1) zf = Math.min(z0 + Math.log2(0.7 * TR.W / Math.max(1, w)), z0 + Math.log2(0.7 * TR.H / Math.max(1, h))); TR.zf = Math.max(12, Math.min(19, zf)); TR.clo = (Math.min(...all.map((p) => p[0])) + Math.max(...all.map((p) => p[0]))) / 2; TR.cla = (Math.min(...all.map((p) => p[1])) + Math.max(...all.map((p) => p[1]))) / 2; }
+  function trFull(on) { TR.full = on; $('g-trazo').classList.toggle('trfull', on); document.body.style.overflow = on ? 'hidden' : ''; $('b-g-full').textContent = on ? 'Cerrar pantalla completa' : 'Ampliar (pantalla completa)'; trSize(); trDraw(); }
+  window.addEventListener('resize', () => { if (TR.base && $('g-trazo').style.display !== 'none') { trSize(); trDraw(); } }); document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && TR.full) trFull(false); });
+  $('b-gen-trazo').addEventListener('click', () => {
     const m = $('g-msg'); m.style.color = ''; const c = coordsIF(); if (!c) { m.style.color = '#b45309'; m.textContent = 'Faltan las coordenadas de inicio y final (latitud y longitud).'; return; }
-    m.textContent = 'Descargando la imagen satelital…'; $('g-trazo').style.display = 'block'; TR.ends = c; TR.pts = [];
-    const W = TR.W, H = TR.H; let z = 18; for (; z > 10; z--) { if (Math.abs(wx(c[0][0], z) - wx(c[1][0], z)) <= W * 0.62 && Math.abs(wy(c[0][1], z) - wy(c[1][1], z)) <= H * 0.62) break; }
-    TR.z = z; TR.cx = (wx(c[0][0], z) + wx(c[1][0], z)) / 2; TR.cy = (wy(c[0][1], z) + wy(c[1][1], z)) / 2; const bc = document.createElement('canvas'); bc.width = W; bc.height = H; const bg = bc.getContext('2d'); bg.fillStyle = '#222'; bg.fillRect(0, 0, W, H);
-    const jobs = []; for (let ty = Math.floor((TR.cy - H / 2) / 256); ty <= Math.floor((TR.cy + H / 2) / 256); ty++) for (let tx = Math.floor((TR.cx - W / 2) / 256); tx <= Math.floor((TR.cx + W / 2) / 256); tx++) jobs.push((async () => { const r = await fetch('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/' + z + '/' + ty + '/' + tx, { mode: 'cors' }); if (!r.ok) throw new Error('HTTP ' + r.status); const bm = await createImageBitmap(await r.blob()); bg.drawImage(bm, tx * 256 - TR.cx + W / 2, ty * 256 - TR.cy + H / 2); })());
-    const rs = await Promise.allSettled(jobs); if (rs.every((q) => q.status === 'rejected')) { m.style.color = '#b45309'; m.textContent = 'No se pudo descargar la imagen satelital (necesita internet; abre la página autónoma directamente en Chrome, Edge o Safari). Puedes usar “Generar en línea recta”.'; $('g-trazo').style.display = 'none'; return; }
-    TR.base = bc; trDraw(); m.textContent = 'Toca sobre el camino, del inicio al final. Cuando termines pulsa “Usar este trazo y generar la libreta”.'; });
+    if (!TR.orig) TR.orig = JSON.parse(JSON.stringify(c)); TR.ends = c; TR.pts = []; TR.ok = TR.bad = 0; $('g-trazo').style.display = 'block'; TR.base = true; trSize(); trFit(); trDraw();
+    m.textContent = 'Toca el mapa, del inicio al final, en cada cambio de dirección. Usa «Ampliar» y pellizca para acercar. Cuando termines pulsa «Usar este trazo y generar la libreta».'; $('g-trazo').scrollIntoView({ block: 'nearest' }); });
   const dmsF = (v, h) => { v = Math.abs(v); let dg = Math.floor(v), mm = Math.floor((v - dg) * 60), ss2 = Math.round(((v - dg) * 60 - mm) * 60 * 100) / 100; if (ss2 >= 60) { ss2 = 0; mm++; } if (mm >= 60) { mm = 0; dg++; } return dg + '°' + String(mm).padStart(2, '0') + "'" + ss2.toFixed(2).padStart(5, '0') + '"' + h; };
-  function trEndsToInputs() { const [a, b] = TR.ends, set = (id, v) => { const e = $(id); e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }; set('d-latI', dmsF(a[1], a[1] >= 0 ? 'N' : 'S')); set('d-lonI', dmsF(a[0], a[0] <= 0 ? 'O' : 'E')); set('d-latF', dmsF(b[1], b[1] >= 0 ? 'N' : 'S')); set('d-lonF', dmsF(b[0], b[0] <= 0 ? 'O' : 'E')); }
-  (() => { const cv = $('g-cv'); let drag = null;
-    const pos = (e) => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * TR.W / r.width, (e.clientY - r.top) * TR.H / r.height, TR.W / r.width]; };
-    const toLL = (x, y) => [tLon(x - TR.W / 2 + TR.cx, TR.z), tLat(y - TR.H / 2 + TR.cy, TR.z)];
-    cv.addEventListener('pointerdown', (e) => { if (!TR.base) return; const [x, y, k] = pos(e), X = (lo) => wx(lo, TR.z) - TR.cx + TR.W / 2, Y = (la) => wy(la, TR.z) - TR.cy + TR.H / 2, R = 30 * k;
-      const cand = [['e', 0, TR.ends[0]], ['e', 1, TR.ends[1]]].concat(TR.pts.map((p, i) => ['p', i, p])); let best = null;
-      cand.forEach((c) => { const dd = Math.hypot(X(c[2][0]) - x, Y(c[2][1]) - y); if (dd < R && (!best || dd < best[0])) best = [dd, c]; });
-      if (best) { drag = { t: best[1][0], i: best[1][1] }; try { cv.setPointerCapture(e.pointerId); } catch (_) { /* sin captura */ } e.preventDefault(); return; }
-      TR.pts.push(toLL(x, y)); trDraw(); e.preventDefault(); });
-    cv.addEventListener('pointermove', (e) => { if (!drag) return; const [x, y] = pos(e), ll = toLL(x, y); if (drag.t === 'e') TR.ends[drag.i] = ll; else TR.pts[drag.i] = ll; trDraw(); e.preventDefault(); });
-    const fin = () => { if (!drag) return; const t = drag.t; drag = null; if (t === 'e') { trEndsToInputs(); $('g-msg').style.color = ''; $('g-msg').textContent = 'Punto movido: las coordenadas de inicio/final se actualizaron.'; } };
-    cv.addEventListener('pointerup', fin); cv.addEventListener('pointercancel', fin); })();
-  $('b-g-undo').addEventListener('click', () => { TR.pts.pop(); if (TR.base) trDraw(); });
-  $('b-g-clear').addEventListener('click', () => { TR.pts = []; if (TR.base) trDraw(); });
-  $('b-g-ok').addEventListener('click', async () => { if (!TR.ends) return; try { await generarLibreta([TR.ends[0]].concat(TR.pts, [TR.ends[1]])); } catch (e) { $('g-msg').style.color = '#b45309'; $('g-msg').textContent = 'No se pudo generar: ' + e.message; } });
+  function trEndsToInputs() { TR.setting = true; const [a, b] = TR.ends, set = (id, v) => { const e = $(id); e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }; set('d-latI', dmsF(a[1], a[1] >= 0 ? 'N' : 'S')); set('d-lonI', dmsF(a[0], a[0] <= 0 ? 'O' : 'E')); set('d-latF', dmsF(b[1], b[1] >= 0 ? 'N' : 'S')); set('d-lonF', dmsF(b[0], b[0] <= 0 ? 'O' : 'E')); TR.setting = false; }
+  [['d-latI'], ['d-lonI'], ['d-latF'], ['d-lonF']].forEach(([id]) => $(id).addEventListener('input', () => { if (!TR.setting) TR.orig = null; })); // si escribes tú las coordenadas, esas pasan a ser las «mías»
+  (() => { const cv = $('g-cv'), P = new Map(); let mode = null, drag = null, pan0 = null, g0 = null, lp = null, moved = false;
+    const pos = (e) => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    const hit = (x, y) => { const V = trView(); let best = null; [['e', 0, TR.ends[0]], ['e', 1, TR.ends[1]]].concat(TR.pts.map((p, i) => ['p', i, p])).forEach((c) => { const d = Math.hypot(V.X(c[2][0]) - x, V.Y(c[2][1]) - y); if (d < 36 && (!best || d < best[0])) best = [d, c]; }); return best && best[1]; };
+    const segDist = (px, py, a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy, t = L2 ? Math.max(0, Math.min(1, ((px - a[0]) * dx + (py - a[1]) * dy) / L2)) : 0; return Math.hypot(px - a[0] - t * dx, py - a[1] - t * dy); };
+    const zoomAt = (x, y, zf) => { const G = trView().LL(x, y); TR.zf = Math.max(12, Math.min(19.5, zf)); const L = trView().LL(x, y); TR.clo += G[0] - L[0]; TR.cla += G[1] - L[1]; };
+    const addPt = (x, y) => { const V = trView(), ll = V.LL(x, y), all = [TR.ends[0]].concat(TR.pts, [TR.ends[1]]).map(([lo, la]) => [V.X(lo), V.Y(la)]); let bi = -1, bd = 22; for (let i = 0; i < all.length - 1; i++) { const d = segDist(x, y, all[i], all[i + 1]); if (d < bd) { bd = d; bi = i; } } if (bi >= 0) TR.pts.splice(bi, 0, ll); else TR.pts.push(ll); trDraw(); };
+    cv.addEventListener('pointerdown', (e) => { if (!TR.base) return; e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (_) { /* sin captura */ } const [x, y] = pos(e); P.set(e.pointerId, [x, y]); clearTimeout(lp);
+      if (P.size === 2) { const [a, b] = [...P.values()], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2; mode = 'pinch'; drag = null; g0 = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, zf: TR.zf, G: trView().LL(mx, my) }; return; }
+      moved = false; const h = hit(x, y);
+      if (h) { drag = h; mode = 'drag'; pan0 = { x, y }; if (h[0] === 'p') lp = setTimeout(() => { if (mode === 'drag' && drag && drag[0] === 'p' && !moved) { TR.pts.splice(drag[1], 1); drag = null; mode = null; trDraw(); try { navigator.vibrate(30); } catch (_) { /* sin vibración */ } } }, 650); }
+      else { mode = 'pan'; pan0 = { x, y, V: trView(), t: Date.now() }; } });
+    cv.addEventListener('pointermove', (e) => { if (!P.has(e.pointerId)) return; e.preventDefault(); const [x, y] = pos(e); P.set(e.pointerId, [x, y]);
+      if (mode === 'pinch' && P.size >= 2) { const [a, b] = [...P.values()], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, d = Math.hypot(a[0] - b[0], a[1] - b[1]) || 1; TR.zf = Math.max(12, Math.min(19.5, g0.zf + Math.log2(d / g0.d))); const L = trView().LL(mx, my); TR.clo += g0.G[0] - L[0]; TR.cla += g0.G[1] - L[1]; trReq(); return; }
+      if (mode === 'drag' && drag) { if (Math.hypot(x - pan0.x, y - pan0.y) > 8) { moved = true; clearTimeout(lp); } if (moved) { const ll = trView().LL(x, y); if (drag[0] === 'e') TR.ends[drag[1]] = ll; else TR.pts[drag[1]] = ll; trReq(); } return; }
+      if (mode === 'pan') { const dx = x - pan0.x, dy = y - pan0.y; if (Math.hypot(dx, dy) > 6) moved = true; if (moved) { const V = pan0.V; TR.clo = tLon(V.cxw - dx / V.s, V.zt); TR.cla = tLat(V.cyw - dy / V.s, V.zt); trReq(); } } });
+    const up = (e) => { if (!P.has(e.pointerId)) return; const [x, y] = pos(e); P.delete(e.pointerId); clearTimeout(lp);
+      if (mode === 'pinch') { if (P.size < 2) { mode = null; moved = true; } return; }
+      if (mode === 'drag' && drag) { const t = drag[0]; drag = null; mode = null; if (t === 'e' && moved) { trEndsToInputs(); $('g-msg').style.color = ''; $('g-msg').textContent = 'Punto movido: las coordenadas de inicio/final se actualizaron.'; } return; }
+      if (mode === 'pan') { mode = null; if (!moved && Date.now() - pan0.t < 600) addPt(x, y); } };
+    cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+    cv.addEventListener('wheel', (e) => { if (!TR.base) return; e.preventDefault(); const [x, y] = pos(e); zoomAt(x, y, TR.zf - e.deltaY * 0.0018); trReq(); }, { passive: false });
+    const zc = (d) => { zoomAt(TR.W / 2, TR.H / 2, Math.round(TR.zf) + d); trDraw(); };
+    $('b-g-zin').addEventListener('click', () => zc(1)); $('b-g-zout').addEventListener('click', () => zc(-1)); })();
+  $('b-g-full').addEventListener('click', () => trFull(!TR.full)); $('b-g-fit').addEventListener('click', () => { if (TR.ends) { trFit(); trDraw(); } });
+  $('b-g-reset').addEventListener('click', () => { if (!TR.orig) return; TR.ends = JSON.parse(JSON.stringify(TR.orig)); TR.pts = []; trEndsToInputs(); trFit(); trDraw(); $('g-msg').style.color = ''; $('g-msg').textContent = 'Volví a tus coordenadas de inicio y final y borré las estaciones. Empieza de nuevo.'; });
+  $('b-g-undo').addEventListener('click', () => { TR.pts.pop(); trDraw(); });
+  $('b-g-clear').addEventListener('click', () => { TR.pts = []; trDraw(); });
+  $('b-g-ok').addEventListener('click', async () => { if (!TR.ends) return; if (TR.full) trFull(false); try { await generarLibreta([TR.ends[0]].concat(TR.pts, [TR.ends[1]])); } catch (e) { $('g-msg').style.color = '#b45309'; $('g-msg').textContent = 'No se pudo generar: ' + e.message; } });
   /* ---- mapa de ubicación no satelital (OpenStreetMap, en blanco y negro) ---- */
   const _cab = {};
   async function cabecera() {
@@ -3584,7 +3622,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
 
   function recompute(keepOpen) {
     const openIdx = []; if (keepOpen) document.querySelectorAll('#results details').forEach((d, i) => { if (d.open) openIdx.push(i); });
-    const v = readForm(); let bad = validate(v);
+    avUI(); const v = readForm(); let bad = validate(v);
     v.lib = $('p-lib').value; v.libu = $('p-libu').checked; v.libWs = null; v.juntasLib = null; v.libA = null;
     const libOk = analizarLibreta(v);
     if (libOk && v.libu) bad = validate(v);
