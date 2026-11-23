@@ -3078,7 +3078,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
         <tr class="sum"><td colspan="4">Costo total · precio unitario ${nf(r.pu)}</td><td>${nf(r.costo)}</td></tr></tbody></table></div></details>`;
     });
     h += `</div></div>`;
-    h += `<div class="card actions"><div style="width:100%;display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><button class="btn" id="b-todo" type="button" title="Genera y guarda el presupuesto, las especificaciones, el DXF y los planos en PDF (con vista previa)">Calcular y generar todo</button><button class="btn alt" id="b-c3d" type="button" title="Guarda un paquete con todos los datos para que Claude dibuje los planos en Civil 3D">Plano en Civil 3D</button></div><button class="btn" id="b-xlsx" type="button">Descargar presupuesto (Excel)</button><button class="btn alt" id="b-docx" type="button">Descargar especificaciones (Word)</button><button class="btn alt" id="b-pdf" type="button">Descargar planos típicos (PDF)</button><button class="btn alt" id="b-dxf" type="button" title="Trazo, perfil, secciones y detalles en metros reales y por capas, para AutoCAD / Civil 3D">Descargar para AutoCAD (DXF)</button><span class="msg" id="msg"></span></div>`;
+    h += `<div class="card actions"><div style="width:100%;display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><button class="btn" id="b-todo" type="button" title="Genera y guarda el presupuesto, las especificaciones, el DXF y los planos en PDF (con vista previa)">Calcular y generar todo</button><button class="btn alt" id="b-c3d" type="button" title="Guarda un paquete con todos los datos para que Claude dibuje los planos en Civil 3D">Plano en Civil 3D</button></div><button class="btn" id="b-xlsx" type="button">Descargar presupuesto (Excel)</button><button class="btn alt" id="b-docx" type="button">Descargar especificaciones (Word)</button><button class="btn alt" id="b-pdf" type="button">Descargar planos típicos (PDF)</button><button class="btn alt" id="b-zip" type="button" title="Un solo archivo comprimido con el presupuesto (Excel), las especificaciones (Word) y los planos (PDF)">Descargar todo comprimido (ZIP)</button><button class="btn alt" id="b-dxf" type="button" title="Trazo, perfil, secciones y detalles en metros reales y por capas, para AutoCAD / Civil 3D">Descargar para AutoCAD (DXF)</button><span class="msg" id="msg"></span></div>`;
     h += `<div class="card"><div class="det"><details><summary><span class="t">Lista de precios vigente (editable)</span><span class="m">materiales y alquileres</span></summary>
       <p class="n" style="margin:0 0 8px">Al cambiar un precio, el presupuesto se vuelve a cuadrar solo. Los cambios se recuerdan en este navegador.</p>
       <div class="scroll">${priceTable()}</div><p><button type="button" class="link" id="b-reset">Restablecer precios de la lista</button></p></details>
@@ -3094,7 +3094,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     el.innerHTML = h;
     $('b-xlsx').addEventListener('click', () => exportar('xlsx'));
     $('b-docx').addEventListener('click', () => exportar('docx'));
-    $('b-pdf').addEventListener('click', () => exportar('pdf'));
+    $('b-pdf').addEventListener('click', () => exportar('pdf')); $('b-zip').addEventListener('click', exportarZip);
     $('b-dxf').addEventListener('click', () => exportar('dxf'));
     $('b-todo').addEventListener('click', async () => { for (const t of ['xlsx', 'docx', 'dxf', 'pdf']) await exportar(t); });
     $('b-c3d').addEventListener('click', () => exportar('c3d'));
@@ -3104,7 +3104,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
       if (isFinite(x) && x >= 0) prices[id] = x; else delete prices[id];
       persist(); recompute(true);
     }));
-    { const neg = R && R.renglones.some((r) => !(r.costo > 0) || !(r.qty > 0)), soft = R && !neg && R.alerts.some((a) => a.lvl === 'bad'), ids = ['b-xlsx', 'b-docx', 'b-pdf', 'b-dxf', 'b-todo', 'b-c3d'];
+    { const neg = R && R.renglones.some((r) => !(r.costo > 0) || !(r.qty > 0)), soft = R && !neg && R.alerts.some((a) => a.lvl === 'bad'), ids = ['b-xlsx', 'b-docx', 'b-pdf', 'b-zip', 'b-dxf', 'b-todo', 'b-c3d'];
       const old = $('b-ask'); if (old) old.remove();
       if ((neg || soft) && !(soft && window.__force)) {
         ids.forEach((i) => { $(i).disabled = true; });
@@ -3121,7 +3121,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
         if (soft) $('a-force').addEventListener('click', () => { window.__force = true; recompute(true); });
       }
       if (!soft) window.__force = false; }
-    if (!dl) { $('b-xlsx').disabled = true; $('b-docx').disabled = true; $('b-pdf').disabled = true; $('b-dxf').disabled = true; $('b-todo').disabled = true; $('b-c3d').disabled = true; if (dlReady) setMsg('La descarga no está disponible en esta vista. Abre el artefacto en claude.ai para guardar los archivos.', 'err'); }
+    if (!dl) { $('b-xlsx').disabled = true; $('b-docx').disabled = true; $('b-pdf').disabled = true; $('b-zip').disabled = true; $('b-dxf').disabled = true; $('b-todo').disabled = true; $('b-c3d').disabled = true; if (dlReady) setMsg('La descarga no está disponible en esta vista. Abre el artefacto en claude.ai para guardar los archivos.', 'err'); }
   }
 
   function setMsg(t, cls) { const m = $('msg'); if (m) { m.textContent = t; m.className = 'msg ' + (cls || ''); } }
@@ -3563,7 +3563,14 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     } catch (e) { m.style.color = '#b45309'; m.textContent = 'No se pudo generar el mapa (' + (e && e.message || e) + '). Necesita internet y abrir PAGINA_CAMINOS_AUTONOMA.html directamente en Chrome o Edge (no en la vista previa de Claude).'; }
     $('b-mapa').disabled = false;
   });
-  async function exportar(tipo) {
+  async function exportarZip() {
+    if (!current || !dl) return; const v = current.v; setMsg('Preparando el paquete comprimido (puede tardar unos segundos)…');
+    try { const z = new JSZip(); for (const t of ['xlsx', 'docx', 'pdf']) { const r = await exportar(t, true); if (!r) return; z.file(r.filename, await r.data.arrayBuffer()); }
+      const blob = await z.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } }), filename = 'PROYECTO_' + slug(v.nombre) + '.zip';
+      await dl.save({ filename, data: blob }); setMsg('Paquete guardado: ' + filename + ' (presupuesto, especificaciones y planos).', 'ok');
+    } catch (e) { if (e && e.code === 'declined') setMsg('No se guardó el archivo.', ''); else setMsg('No se pudo crear el paquete' + (e && e.message ? ': ' + e.message : '.'), 'err'); }
+  }
+  async function exportar(tipo, ret) {
     if (!current || !dl) return;
     const { v, R } = current;
     const meta = { proyecto: v.nombre || 'PROYECTO', municipio: v.mun, departamento: v.dep,
@@ -3576,7 +3583,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
         data = new Blob([await wb.xlsx.writeBuffer()], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         filename = 'PRESUPUESTO_' + slug(v.nombre) + '.xlsx';
       } else if (tipo === 'pdf') {
-        { const dp = datosPl(), falta = []; if (!dp.latI || !dp.lonI) falta.push('coordenadas de INICIO'); if (!dp.latF || !dp.lonF) falta.push('coordenadas FINALES'); const key = falta.join('|'); if (falta.length && window._advCoord !== key) { window._advCoord = key; $('imgbox').open = true; setMsg('Faltan las ' + falta.join(' y las ') + ' (latitud y longitud) en "Coordenadas, fotos y mapas para los planos". Complétalas, o vuelve a pulsar para generar con PENDIENTE.'); return; } }
+        { const dp = datosPl(), falta = []; if (!dp.latI || !dp.lonI) falta.push('coordenadas de INICIO'); if (!dp.latF || !dp.lonF) falta.push('coordenadas FINALES'); const key = falta.join('|'); if (falta.length && window._advCoord !== key) { window._advCoord = key; $('imgbox').open = true; setMsg('Faltan las ' + falta.join(' y las ') + ' (latitud y longitud) en "Coordenadas, fotos y mapas para los planos". Complétalas, o vuelve a pulsar para generar con PENDIENTE.'); return null; } }
         const ws = (v.remw || '').split(/[,;\s]+/).map(parseFloat).filter((x) => isFinite(x) && x > 0);
         const doc = PdfGen.build(window.jspdf.jsPDF, R, meta, { remn: v.remn || 0, remwArr: ws.length ? ws : (v.libWs || []), lib: v.libu && v.libA ? v.libA : null, libEst: !!v.libEst, imgs: IMGS, datos: datosPl() });
         data = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
@@ -3602,6 +3609,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
         data = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
         filename = 'ESPECIFICACIONES_' + slug(v.nombre) + '.docx';
       }
+      if (ret) return { data, filename };
       if (tipo === 'pdf' && window.pdfjsLib) { setMsg(''); await vistaPrevia(data, filename); return; }
       await dl.save({ filename, data });
       setMsg('Archivo guardado: ' + filename, 'ok');
