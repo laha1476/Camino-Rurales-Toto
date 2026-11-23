@@ -3299,15 +3299,23 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     const ss = []; for (let s = 0; s < Lp - sp * 0.35; s += sp) ss.push(s); ss.push(Lp);
     const P = ss.map((s) => at(s)), LL = P.map(([x, y]) => [path[0][0] + x / kx, la0 + y / ky]);
     m.textContent = 'Consultando las elevaciones del terreno…'; let el = null;
-    try { el = await Promise.all(LL.map(([lo, la]) => demAt(la, lo))); if (el.length > 2) el = el.map((v, i) => (i === 0 || i === el.length - 1) ? v : 0.25 * el[i - 1] + 0.5 * v + 0.25 * el[i + 1]); } catch (e) { el = null; }
+    try { // el modelo de terreno tiene ~30 m de resolución: se muestrea fino, se suaviza (~±30 m) y se limita la pendiente a un valor real de camino
+      const h = 5, ng = Math.max(3, Math.ceil(Lp / h) + 1), G = []; for (let q = 0; q < ng; q++) { const sq = Math.min(Lp, q * h), [x, y] = at(sq); G.push([path[0][0] + x / kx, la0 + y / ky]); }
+      const raw = await Promise.all(G.map(([lo, la]) => demAt(la, lo))), sg = 30 / h, W = Math.ceil(sg * 3), sm = raw.map((_, i) => { let a = 0, b = 0; for (let j = Math.max(0, i - W); j <= Math.min(ng - 1, i + W); j++) { const w = Math.exp(-0.5 * ((j - i) / sg) * ((j - i) / sg)); a += w * raw[j]; b += w; } return a / b; });
+      const gs = (sq) => { const f = Math.min(ng - 1, sq / h), i0 = Math.min(ng - 2, Math.floor(f)), t = f - i0; return sm[i0] * (1 - t) + sm[i0 + 1] * t; };
+      el = ss.map((sq) => gs(sq)); const gmax = 0.12; // pendiente máxima 12 %
+      for (let it = 0; it < 4; it++) { for (let i = 1; i < el.length; i++) { const d = ss[i] - ss[i - 1], lim = gmax * d; if (el[i] - el[i - 1] > lim) el[i] = el[i - 1] + lim; else if (el[i - 1] - el[i] > lim) el[i] = el[i - 1] - lim; } for (let i = el.length - 2; i >= 0; i--) { const d = ss[i + 1] - ss[i], lim = gmax * d; if (el[i] - el[i + 1] > lim) el[i] = el[i + 1] + lim; else if (el[i + 1] - el[i] > lim) el[i] = el[i + 1] - lim; } }
+    } catch (e) { el = null; }
     const pr = (q) => { const k = Math.floor(q / 1000), r = q - k * 1000; return k + '+' + (r < 100 ? '0' : '') + (r < 10 ? '0' : '') + r.toFixed(2); };
     const dm = (b) => { const dg = Math.floor(b), mm = Math.floor((b - dg) * 60), s = ((b - dg) * 60 - mm) * 60; return dg + '°' + mm + "'" + s.toFixed(2) + '"'; };
     const w = 'Ancho: ' + anc.toFixed(2) + ' M', fe = (i) => el ? ' Elev=' + el[i].toFixed(2) : '', rows = ['E-1 0.00 ------ 0+000.00 ' + w + fe(0)];
     for (let i = 1; i < P.length; i++) { const dx = P[i][0] - P[i - 1][0], dy = P[i][1] - P[i - 1][1], dd = Math.hypot(dx, dy), b = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360; rows.push('E-' + i + ' A E-' + (i + 1) + ' ' + dd.toFixed(2) + ' ' + dm(b) + ' ' + pr(ss[i]) + ' ' + w + fe(i)); }
     libSet = true; $('p-lib').value = rows.join('\n'); $('p-lib').dataset.est = '1'; $('p-lib').dispatchEvent(new Event('input', { bubbles: true })); $('p-lib').dataset.est = '1'; libSet = false;
     $('g-out').style.display = 'block'; $('g-out').value = rows.join('\n');
+    const habiaMapa = !!IMGS.mapa;
     $('p-utm').value = LL.map(([lo, la]) => { const u = llToUtm(la, lo, 15); return u[0].toFixed(2) + '  ' + u[1].toFixed(2); }).join('\n');
     if (!isFinite(parseFloat($('p-largo').value))) $('p-largo').value = Lp.toFixed(2);
+    if (habiaMapa) { delete IMGS.mapa; try { infoImgs(); } catch (e) { /* sin panel */ } if ($('p-mun').value.trim()) setTimeout(() => $('b-mapa').click(), 50); } // el mapa de ubicación anterior ya no coincide con el nuevo trazo
     m.style.color = el ? '#166534' : '#b45309'; m.textContent = 'Libreta estimada lista: ' + P.length + ' estaciones, largo ' + Lp.toFixed(2) + ' m' + (el ? ', desnivel ' + (Math.max(...el) - Math.min(...el)).toFixed(1) + ' m (de ' + el[0].toFixed(1) + ' a ' + el[el.length - 1].toFixed(1) + ' m).' : '. No se pudieron consultar las elevaciones (necesita internet): la libreta quedó sin elevación, escríbelas a mano.') + ' ' + nota + ' Estimación con modelo digital de terreno (±5 a 15 m): verifícala con topografía real antes de entregar.';
   }
   function coordsIF() { const dp = datosPl(), la0 = parseCoord(dp.latI), lo0 = -parseCoord(dp.lonI), la1 = parseCoord(dp.latF), lo1 = -parseCoord(dp.lonF); if (![la0, lo0, la1, lo1].every(isFinite)) return null; return [[lo0, la0], [lo1, la1]]; }
