@@ -163,8 +163,21 @@ summary .m { font: 600 13px var(--font-num); white-space: nowrap; }
 .foot { margin-top: 18px; font-size: 13px; color: var(--ink-2); max-width: 90ch; }
 .link { background: none; border: 0; color: var(--accent); text-decoration: underline; padding: 0; font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+body[data-modo=sin] .m-con{display:none!important}
+body[data-modo=con] .m-sin{display:none!important}
+#modo-ov{position:fixed;inset:0;background:rgba(20,24,28,.78);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px}
+#modo-ov[hidden]{display:none}
+#modo-ov .bx{background:var(--bg,#fff);color:var(--ink,#111);max-width:620px;width:100%;border-radius:10px;padding:22px}
+#modo-ov h2{margin:0 0 6px;font-size:20px}
+#modo-ov .op{display:block;width:100%;text-align:left;margin-top:12px;padding:14px;border:2px solid var(--line,#999);border-radius:8px;background:var(--soft,#f4f4f4);color:inherit;font:inherit;cursor:pointer}
+#modo-ov .op:hover{border-color:var(--accent,#c00)}
+#modo-ov .op b{display:block;font-size:16px;margin-bottom:3px}
+#modo-ov .op span{font-size:13px;opacity:.85}
 </style>
 
+<div id="modo-ov"><div class="bx" role="dialog" aria-modal="true"><h2>¿Tu proyecto tiene topografía?</h2><div style="font-size:14px;opacity:.85">Según tu respuesta, la aplicación te pide unos datos u otros.</div>
+<button type="button" class="op" id="m-con"><b>Sí, tengo topografía</b><span>Pegas la libreta (estaciones, azimuts, distancias, elevaciones) y, si la tienes, las coordenadas UTM. Todo se calcula con tus datos reales.</span></button>
+<button type="button" class="op" id="m-sin"><b>No, no tengo topografía</b><span>Solo necesitas coordenada inicial, coordenada final, largo y ancho. La aplicación arma una libreta estimada con las imágenes satelitales y un modelo de terreno (es una estimación, no un levantamiento).</span></button></div></div>
 <div class="wrap">
   <div class="top">
     <div>
@@ -175,6 +188,7 @@ summary .m { font: 600 13px var(--font-num); white-space: nowrap; }
     <div class="status" id="status" role="status"><i></i><span id="status-t">Cuadra con el monto</span></div>
   </div>
 
+  <div style="font-size:13px;margin:0 0 8px"><span id="modo-txt"></span> · <button type="button" class="link" id="modo-cambiar">Cambiar</button></div>
   <div class="strip" aria-hidden="true"><svg id="strip" height="64"></svg></div>
 
   <div class="grid">
@@ -208,9 +222,22 @@ summary .m { font: 600 13px var(--font-num); white-space: nowrap; }
         <div class="f"><label for="p-sep">Separación de juntas (m)</label><input type="number" id="p-sep" inputmode="decimal" step="any" min="0"></div>
       </fieldset>
       <fieldset>
-        <legend>Libreta topográfica (opcional)</legend>
-        <div class="hint" style="font-size:12px;color:var(--ink-2);margin:0 0 8px">Pega la tabla de la libreta: lado, distancia, azimut, distancia acumulada, ancho y elevación (como en la hoja 1 de tus planos). Con ella la página calcula el largo exacto, el ancho medio, las juntas y los anchos de remate, y el PDF dibuja la planta, el perfil y el flujo de agua con el trazo real.</div>
-        <div class="f"><label for="p-lib">Tabla de la libreta</label><textarea id="p-lib" rows="6" spellcheck="false" placeholder="E-1&#9;0.00&#9;------&#9;0+000.00&#9;Ancho: 8.00 M&#9;Elev=2,438.36&#10;E-1 A E-2&#9;2.35&#9;31°47'7.29&quot;&#9;0+002.35&#9;Ancho: 7.50 M&#9;Elev=2,438.14"></textarea></div>
+        <legend><span class="m-con">Libreta topográfica</span><span class="m-sin">Libreta estimada (sin topografía)</span></legend>
+        <div class="hint m-con" style="font-size:12px;color:var(--ink-2);margin:0 0 8px">Pega la tabla de la libreta: lado, distancia, azimut, distancia acumulada, ancho y elevación (como en la hoja 1 de tus planos). Con ella la página calcula el largo exacto, el ancho medio, las juntas y los anchos de remate, y el PDF dibuja la planta, el perfil y el flujo de agua con el trazo real.</div>
+        <div class="f m-con"><label for="p-lib">Tabla de la libreta</label><textarea id="p-lib" rows="6" spellcheck="false" placeholder="E-1&#9;0.00&#9;------&#9;0+000.00&#9;Ancho: 8.00 M&#9;Elev=2,438.36&#10;E-1 A E-2&#9;2.35&#9;31°47'7.29&quot;&#9;0+002.35&#9;Ancho: 7.50 M&#9;Elev=2,438.14"></textarea></div>
+        <details class="f m-sin" id="genlib" open><summary style="cursor:pointer;font-weight:600">Genera la libreta estimada</summary>
+          <div class="hint" style="font-size:12px;color:var(--ink-2);margin:6px 0">Con las coordenadas de inicio y final, el largo y el ancho, la aplicación arma la libreta (estaciones, azimuts, distancias y elevaciones). El camino lo trazas tocando sobre la imagen satelital; las elevaciones salen de un modelo digital de terreno (resolución cercana a 30 m, error de ±5 a 15 m). <b>Es una estimación para anteproyecto: no sustituye un levantamiento topográfico</b> y el plano lo indicará. Necesita internet (abre la página autónoma en Chrome, Edge o Safari).</div>
+          <div class="f"><label for="g-sp">Separación entre estaciones (m)</label><input type="number" id="g-sp" inputmode="decimal" step="any" min="5" value="15"></div>
+          <button type="button" id="b-gen-recta" class="link" style="font-weight:600">Generar en línea recta entre inicio y final</button>
+          <button type="button" id="b-gen-trazo" class="link" style="font-weight:600;margin-left:10px">Trazar el camino sobre la imagen satelital</button>
+          <div id="g-msg" style="font-size:12px;margin-top:6px;color:var(--ink-2)"></div>
+          <textarea id="g-out" rows="6" readonly spellcheck="false" style="margin-top:6px;display:none;font-size:12px" aria-label="Libreta estimada generada"></textarea>
+          <div id="g-trazo" style="display:none;margin-top:8px">
+            <div style="font-size:12px;margin-bottom:4px">Toca sobre el camino, de <b style="color:#16a34a">inicio (verde)</b> a <b style="color:#2563eb">final (azul)</b>, cada vez que cambie de dirección. Más puntos = más fiel.</div>
+            <canvas id="g-cv" width="1000" height="700" style="width:100%;max-width:900px;border:1px solid var(--line,#999);border-radius:6px;touch-action:manipulation;background:#222"></canvas>
+            <div style="margin-top:6px"><button type="button" id="b-g-undo" class="link">Deshacer último punto</button> <button type="button" id="b-g-clear" class="link" style="margin-left:10px">Borrar trazo</button> <button type="button" id="b-g-ok" class="link" style="font-weight:700;margin-left:10px">Usar este trazo y generar la libreta</button></div>
+          </div>
+        </details>
         <details class="f" id="imgbox" open><summary style="cursor:pointer;font-weight:600">Coordenadas, fotos y mapas para los planos</summary>
           <p style="font-size:12px;margin:6px 0;color:#b45309;font-weight:600">Necesarios: coordenadas de inicio y final (latitud / longitud). Fotos y mapas son opcionales.</p>
           <p style="font-size:12px;opacity:.8;margin:6px 0">El mapa de Guatemala y el del departamento se dibujan solos con el departamento y municipio que elijas arriba (si subes una imagen, se usa la tuya). Lo que no cargues queda como recuadro "PENDIENTE" en el plano. Las imágenes se acomodan solas en la hoja.</p>
@@ -229,6 +256,9 @@ summary .m { font: 600 13px var(--font-num); white-space: nowrap; }
             <input type="file" id="i-coord" accept="image/*" multiple>
             <textarea id="t-coord" rows="2" spellcheck="false" placeholder="o pega aquí el texto: COORDENADAS INICIO DE CAMINO: LATITUD 15°6'31.44''N LONGITUD 91°19'51.04''O ..." style="margin-top:6px"></textarea>
             <button type="button" id="b-coord" class="link" style="font-weight:600;margin-top:4px">Extraer coordenadas y llenar los campos</button>
+            <div style="margin-top:10px;font-weight:600;font-size:13px">Coordenadas UTM de las estaciones (opcional, recomendado)</div>
+            <textarea id="p-utm" rows="4" spellcheck="false" placeholder="Pega las columnas ESTE y NORTE de tu cuadro de construcción, una estación por línea:&#10;684,057.41  1,667,049.56&#10;684,018.11  1,667,044.65&#10;..." style="margin-top:4px"></textarea>
+            <div id="utm-msg" style="font-size:12px;margin-top:2px;color:var(--ink-2)">Con estas coordenadas el trazo sobre el mapa y las imágenes cae exactamente sobre el camino (UTM zona 15N). Sin ellas, el trazo se arma con los azimuts de la libreta y puede salirse del camino.</div>
             <div id="coord-msg" style="font-size:12px;margin-top:4px;color:var(--ink-2)">Acepta las capturas de tus cuadros "COORDENADAS INICIO / FINAL DE CAMINO" (una o dos imágenes). La lectura de imágenes necesita internet y la página autónoma; el texto pegado funciona siempre.</div></div>
           <div class="f" style="border:1px dashed var(--line,#999);border-radius:8px;padding:8px"><button type="button" id="b-sat" class="link" style="font-weight:600">Generar las dos imágenes satelitales desde las coordenadas</button>
             <div id="sat-msg" style="font-size:12px;margin-top:4px;color:var(--ink-2)">Usa las coordenadas de inicio y final (y la libreta, si la pegaste, para dibujar el trazo real del camino). Imágenes: Esri World Imagery; requiere internet en tu equipo.</div>
@@ -239,9 +269,9 @@ summary .m { font: 600 13px var(--font-num); white-space: nowrap; }
           <div class="f"><span id="auto-msg" style="font-size:12px;color:var(--ink-2)"></span></div>
           <div class="f"><span id="i-info" style="font-size:12px"></span></div>
         </details>
-        <label class="check"><input type="checkbox" id="p-libu" checked> Usar la libreta para el largo, el ancho medio, las juntas y los anchos de remate</label>
-        <div class="hint" id="lib-sum" style="font-size:12px;color:var(--ink-2);margin:6px 0 0"></div>
-        <div style="margin-top:8px"><button type="button" class="link" id="b-libex">Cargar libreta de ejemplo (Palemop 2)</button> · <button type="button" class="link" id="b-libclr">Borrar libreta</button></div>
+        <label class="check m-con"><input type="checkbox" id="p-libu" checked> Usar la libreta para el largo, el ancho medio, las juntas y los anchos de remate</label>
+        <div class="hint m-con" id="lib-sum" style="font-size:12px;color:var(--ink-2);margin:6px 0 0"></div>
+        <div class="m-con" style="margin-top:8px"><button type="button" class="link" id="b-libex">Cargar libreta de ejemplo (Palemop 2)</button> · <button type="button" class="link" id="b-libclr">Borrar libreta</button></div>
       </fieldset>
       <fieldset>
         <legend>Obras especiales</legend>
@@ -2115,7 +2145,7 @@ const PdfGen = (function () {
     const els = pts.map((p) => p.el), mn = Math.min(...els), mx = Math.max(...els), rg = Math.max(mx - mn, 0.4);
     for (const Nv of ESCV.filter((n) => n <= Nh)) {
       const code = 500 / Nv, stp = [0.1, 0.25, 0.5, 1, 2, 5, 10, 20].find((q) => q * code >= 6.5) || 20;
-      const lo = Math.floor((mn - rg * 0.08) / stp) * stp, hi = Math.ceil((mx + rg * 0.08) / stp) * stp, h = (hi - lo) * code;
+      const lo = Math.floor((mn - rg * 0.08 - 5 / code) / stp) * stp, hi = Math.ceil((mx + rg * 0.08) / stp) * stp, h = (hi - lo) * code;
       if (h <= hmax) return { Nh, Nv, stp, lo, hi, h, mn, mx };
     }
     const Nv = Nh, code = 500 / Nv, stp = 5, lo = Math.floor(mn / stp) * stp, hi = Math.ceil(mx / stp) * stp;
@@ -2128,34 +2158,69 @@ const PdfGen = (function () {
     if (!lib.hasEl) { d.setFont('helvetica', 'italic'); d.setFontSize(9); d.text('La libreta no trae elevaciones; pega la columna de elevación para dibujar el perfil.', x, y + 20); return; }
     const cx = 500 / G.Nh, cy = 500 / G.Nv, h = G.h, w = largo * cx;
     const X = (q) => x + q * cx, Y = (e) => y + h - (e - G.lo) * cy;
+    const yAt = (q) => { for (let i = 1; i < n; i++) if (q <= pts[i].acu + 1e-9) { const a = pts[i - 1], b = pts[i], t = b.acu > a.acu ? (q - a.acu) / (b.acu - a.acu) : 0; return Y(a.el + (b.el - a.el) * t); } return Y(pts[n - 1].el); };
+    // ---- marco y rejilla fina (cada paso mayor y subdivisiones)
     d.setLineWidth(0.3); d.setDrawColor(0); d.setFillColor(255); d.rect(x, y, w, h);
-    d.setFont('helvetica', 'normal'); d.setFontSize(5.6); d.setLineWidth(0.06); d.setDrawColor(180);
-    for (let e = G.lo; e <= G.hi + 1e-9; e += G.stp) { d.line(x, Y(e), x + w, Y(e)); d.text(nf(e, 2), x - 1.5, Y(e) + 0.9, { align: 'right' }); }
-    pts.forEach((p) => d.line(X(p.acu), y, X(p.acu), y + h)); d.setDrawColor(0);
-    d.setLineWidth(0.8); for (let i = 1; i < n; i++) d.line(X(pts[i - 1].acu), Y(pts[i - 1].el), X(pts[i].acu), Y(pts[i].el));
-    d.setFillColor(0); pts.forEach((p) => d.circle(X(p.acu), Y(p.el), 0.55, 'F'));
-    d.setFont('helvetica', 'normal'); d.setFontSize(5.2);
-    for (let i = 1; i < n; i++) { const a = pts[i - 1], b = pts[i], dd = b.acu - a.acu; if (dd * cx < 13) continue; const pend = (b.el - a.el) / dd * 100; d.text((pend > 0 ? '+' : '') + pend.toFixed(2) + '%', (X(a.acu) + X(b.acu)) / 2, Math.min(Y(a.el), Y(b.el)) - 3.2, { align: 'center' }); }
-    d.setFont('helvetica', 'bold'); d.setFontSize(6.5); d.text('ELEVACIÓN (m)', x - 3, y - 4, { align: 'right' });
-    // FIN DE INTERVENCIÓN
-    d.setLineWidth(0.4); d.setLineDashPattern([2, 1], 0); d.line(X(largo), y - 6, X(largo), y + h + 30); d.setLineDashPattern([], 0);
-    d.setFontSize(6.2); d.text('FIN DE INTERVENCIÓN', X(largo), y - 8, { align: 'right' }); d.text('INICIO', x, y - 8, { align: 'left' });
-    // bandas de datos
-    const ry = y + h + 2, rh = 5.6, rows = ['ESTACIÓN', 'PROGRESIVA', 'ELEVACIÓN', 'ANCHO (m)', 'PENDIENTE %'];
-    d.setLineWidth(0.25); d.setFillColor(255); d.rect(x, ry, w, rh * rows.length);
-    d.setFont('helvetica', 'bold'); d.setFontSize(5.2);
-    rows.forEach((t, i) => { d.text(t, x - 1.5, ry + 3.8 + i * rh, { align: 'right' }); if (i) d.line(x, ry + i * rh, x + w, ry + i * rh); });
-    const keep = []; let lastX = -99; pts.forEach((p, i) => { const xx = X(p.acu); if (i === n - 1 || (xx - lastX >= 9 && X(pts[n - 1].acu) - xx >= 9) || i === 0) { keep.push(i); lastX = xx; } });
-    d.setFont('helvetica', 'normal'); d.setFontSize(4.9);
-    keep.forEach((i) => { const p = pts[i], xx = X(p.acu), al = i === 0 ? 'left' : (i === n - 1 ? 'right' : 'center'), tx = i === 0 ? xx + 0.8 : (i === n - 1 ? xx - 0.8 : xx), prev = pts[i - 1];
-      d.text(i === n - 1 ? 'FIN' : 'E-' + (i + 1), tx, ry + 3.8, { align: al }); d.text(prog(p.acu), tx, ry + 3.8 + rh, { align: al }); d.text(nf(p.el, 2), tx, ry + 3.8 + 2 * rh, { align: al }); d.text(nf(p.w, 2), tx, ry + 3.8 + 3 * rh, { align: al });
-      if (prev && p.acu > prev.acu) d.text(((p.el - prev.el) / (p.acu - prev.acu) * 100).toFixed(2), tx, ry + 3.8 + 4 * rh, { align: al }); });
+    const sub = [5, 4, 2].find((k) => G.stp * cy / k >= 1.7) || 1;
+    d.setLineWidth(0.04); d.setDrawColor(222);
+    if (sub > 1) for (let e = G.lo; e < G.hi - 1e-9; e += G.stp / sub) { const yy = Y(e); if (yy > y + 0.2 && yy < y + h - 0.2) d.line(x, yy, x + w, yy); }
+    d.setFont('helvetica', 'normal'); d.setFontSize(5.4); d.setLineWidth(0.08); d.setDrawColor(150);
+    for (let e = G.lo; e <= G.hi + 1e-9; e += G.stp) { const yy = Y(e); d.line(x, yy, x + w, yy); d.setTextColor(0); d.text(nf(e, 2), x - 1.5, yy + 0.9, { align: 'right' }); d.text(nf(e, 2), x + w + 1.5, yy + 0.9, { align: 'left' }); }
+    // ---- estaciones: líneas verticales y rótulos
+    const keepIdx = []; let lastX = -99; pts.forEach((p, i) => { const xx = X(p.acu); if (i === 0 || (xx - lastX >= 4.8 && X(largo) - xx >= 4.8) || i === n - 1) { keepIdx.push(i); lastX = xx; } });
+    d.setLineWidth(0.07); d.setDrawColor(120); d.setLineDashPattern([1.2, 0.8], 0);
+    pts.forEach((p, i) => { const kp = keepIdx.indexOf(i) >= 0; d.line(X(p.acu), y - (kp ? 1.5 : 0), X(p.acu), y + h + (kp ? 6.5 : 0)); });
+    d.setLineDashPattern([], 0); d.setDrawColor(0);
+    d.setFont('helvetica', 'bold'); d.setFontSize(4.4); d.setTextColor(0);
+    keepIdx.forEach((i) => { d.text(prog(pts[i].acu), X(pts[i].acu) + 0.65, y - 2.2, { angle: 90 }); });
+    // ---- capas: pavimento (negro), base granular (achurada) y suelo natural (punteado)
+    const pav = Math.max(0.15 * cy, 0.8), bas = Math.max(0.15 * cy, 0.95);
+    for (let i = 1; i < n; i++) {
+      const a = pts[i - 1], b = pts[i], x0 = X(a.acu), x1 = X(b.acu), y0 = Y(a.el), y1 = Y(b.el);
+      d.setFillColor(0); d.triangle(x0, y0, x1, y1, x1, y1 + pav, 'F'); d.triangle(x0, y0, x1, y1 + pav, x0, y0 + pav, 'F');
+      d.setLineWidth(0.05); d.setDrawColor(40);
+      const st = Math.max(0.55, (x1 - x0) / 60);
+      for (let q = x0; q < x1 - 0.2; q += st) { const t0 = (q - x0) / (x1 - x0), t1 = Math.min(1, (q + st * 0.9 - x0) / (x1 - x0)); d.line(q, y0 + (y1 - y0) * t0 + pav, q + st * 0.9, y0 + (y1 - y0) * t1 + pav + bas); }
+      d.setLineWidth(0.12); d.setDrawColor(0); d.line(x0, y0 + pav + bas, x1, y1 + pav + bas);
+      d.setLineWidth(0.1); d.setLineDashPattern([0.6, 0.7], 0); d.setDrawColor(70); d.line(x0, y0 + pav + bas + 1.7, x1, y1 + pav + bas + 1.7); d.setLineDashPattern([], 0); d.setDrawColor(0);
+    }
+    d.setFillColor(255); d.setDrawColor(0); d.setLineWidth(0.18); pts.forEach((p) => d.circle(X(p.acu), Y(p.el), 0.5, 'FD'));
+    // ---- pendientes por tramo (con fondo blanco para leerse sobre la rejilla)
+    d.setFont('helvetica', 'bold'); d.setFontSize(4.6);
+    for (let i = 1; i < n; i++) { const a = pts[i - 1], b = pts[i], dd = b.acu - a.acu; if (dd * cx < 11) continue; const pend = (b.el - a.el) / dd * 100, tx = (X(a.acu) + X(b.acu)) / 2, ty = Math.min(Y(a.el), Y(b.el)) - 3.6, tt = (pend > 0 ? '+' : '') + pend.toFixed(2) + '%', tw = d.getTextWidth(tt) + 1.2; if (ty - 2 > y) { d.setFillColor(255); d.rect(tx - tw / 2, ty - 2.1, tw, 2.9, 'F'); d.setTextColor(0); d.text(tt, tx, ty, { align: 'center' }); } }
+    // ---- llamadas con flecha: pavimento, base y suelo natural (si hay espacio libre)
+    const free = (q) => { const yy = yAt(q); return { up: yy - y, dn: y + h - (yy + pav + bas + 2.5) }; };
+    const calls = [[0.2, ['PAVIMENTO HIDRÁULICO ESPESOR 0.15 MTS', "CONCRETO f'c = 4,000 PSI"], 0], [0.5, ['BASE GRANULAR (ARENA DE MINA + GRAVA)', 'E = 0.15 MTS COMPACTADA'], 1], [0.8, ['SUELO NATURAL', 'CORTE Y NIVELACIÓN'], 2]];
+    const nc = w >= 150 ? 3 : (w >= 100 ? 2 : (w >= 56 ? 1 : 0)), use = nc === 3 ? calls : (nc === 2 ? [calls[0], calls[2]] : (nc === 1 ? [calls[1]] : []));
+    d.setFont('helvetica', 'bold'); d.setFontSize(3.7);
+    use.forEach(([f, L, k]) => {
+      const q = largo * f, fr = free(q), below = fr.dn >= fr.up, room = below ? fr.dn : fr.up; if (room < 10) return;
+      const wt = Math.max(...L.map((s) => d.getTextWidth(s))) + 1.5, ax = X(q), ay = yAt(q) + (k === 0 ? pav / 2 : (k === 1 ? pav + bas / 2 : pav + bas + 1.7));
+      let bx = Math.max(x + 1, Math.min(x + w - wt - 1, ax - wt / 2 + (k === 0 ? -8 : (k === 2 ? 8 : 0)))), by = below ? y + h - 8.2 : y + 2.2;
+      d.setFillColor(255); d.rect(bx, by, wt, 6.4, 'F'); d.setTextColor(0); L.forEach((s, j) => d.text(s, bx + 0.7, by + 2.4 + j * 2.4));
+      d.setLineWidth(0.1); d.setDrawColor(0); d.line(bx, by + 5.2 + (below ? 0 : 0), bx + wt, by + 5.2); d.line(bx + wt / 2, below ? by - 0.2 : by + 6.4, ax, ay);
+      d.setFillColor(0); const aa = Math.atan2(ay - (below ? by - 0.2 : by + 6.4), ax - (bx + wt / 2)); d.triangle(ax, ay, ax - 1.7 * Math.cos(aa - 0.35), ay - 1.7 * Math.sin(aa - 0.35), ax - 1.7 * Math.cos(aa + 0.35), ay - 1.7 * Math.sin(aa + 0.35), 'F');
+    });
+    d.setFont('helvetica', 'bold'); d.setFontSize(5.6); d.setTextColor(0); d.text('ELEVACIÓN (m)', x - 1.5, y - 8.5, { align: 'right' });
+    // INICIO / FIN DE INTERVENCIÓN (a los lados del perfil)
+    d.setLineWidth(0.4); d.setDrawColor(0); d.setLineDashPattern([2, 1], 0); d.line(X(largo), y - 2, X(largo), y + h + 19); d.setLineDashPattern([], 0);
+    d.setFontSize(6); d.text('INICIO', x - 1.5, y - 3.2, { align: 'right' }); d.text('FIN DE', x + w + 1.8, y - 5.5, { align: 'left' }); d.text('INTERVENCIÓN', x + w + 1.8, y - 2.5, { align: 'left' });
+    // ---- bandas inferiores: distancias parciales y rótulos verticales de estación (como en los planos CODEDE)
+    const ry = y + h + 1.2;
+    d.setLineWidth(0.15); d.setDrawColor(0); d.line(x, ry + 4.4, x + w, ry + 4.4);
+    d.setFont('helvetica', 'bold'); d.setFontSize(4.2); d.text('DIST. (m)', x - 1.5, ry + 3, { align: 'right' }); d.text('ESTACIÓN', x - 5, ry + 8.5, { align: 'right' }); d.text('ELEVACIÓN', x - 5, ry + 11, { align: 'right' });
+    d.setFont('helvetica', 'normal'); d.setFontSize(4.3);
+    for (let i = 1; i < n; i++) { const a = pts[i - 1], b = pts[i], dd = b.acu - a.acu, x0 = X(a.acu), x1 = X(b.acu); d.setLineWidth(0.12); d.line(x0, ry + 1, x0, ry + 4.4); if (i === n - 1) d.line(x1, ry + 1, x1, ry + 4.4); if ((x1 - x0) >= 6.4) d.text(nf(dd, 2), (x0 + x1) / 2, ry + 3, { align: 'center' }); }
+    d.setFont('helvetica', 'bold'); d.setFontSize(4.1);
+    keepIdx.forEach((i) => { const p = pts[i], xx = X(p.acu), tx = 'E-' + (i + 1) + '=' + prog(p.acu), te = 'Elev=' + nf(p.el, 2); const sh = i === n - 1 ? -2.1 : 0; d.text(tx, xx - 0.55 + sh, ry + 16.5, { angle: 90 }); d.setFont('helvetica', 'normal'); d.text(te, xx + 1.55 + sh, ry + 16.5, { angle: 90 }); d.setFont('helvetica', 'bold'); });
+    if (v.libEst) { d.setFont('helvetica', 'bolditalic'); d.setFontSize(4.2); d.setTextColor(150, 0, 0); d.text('PERFIL PRELIMINAR: elevaciones estimadas con modelo digital de terreno (±5 a 15 m); verificar con levantamiento topográfico.', x, ry + 21); d.setTextColor(0); }
     if (pos.noText) return;
-    const yy = ry + rh * rows.length + 8;
+    const yy = ry + 24;
     d.setFont('helvetica', 'bold'); d.setFontSize(7.5); d.text('ESCALA HORIZONTAL 1:' + G.Nh + '   ·   ESCALA VERTICAL 1:' + G.Nv + (G.Nv < G.Nh ? '   (exageración vertical ×' + nf(G.Nh / G.Nv, 1).replace(/\.0$/, '') + ')' : ''), x, yy);
     let pmx = -1e9, pmn = 1e9; for (let i = 1; i < n; i++) { const pd = (pts[i].el - pts[i - 1].el) / (pts[i].acu - pts[i - 1].acu) * 100; pmx = Math.max(pmx, pd); pmn = Math.min(pmn, pd); }
     d.setFont('helvetica', 'normal'); d.setFontSize(6.8);
     d.text('Desnivel del tramo: ' + nf(G.mx - G.mn, 2) + ' m   ·   pendiente media: ' + nf((pts[n - 1].el - pts[0].el) / largo * 100, 2) + '%   ·   pendiente máxima: ' + nf(pmn, 2) + '% / ' + nf(pmx, 2) + '%   ·   longitud: ' + nf(largo, 2) + ' m (hasta donde alcanza el presupuesto)', x, yy + 5);
+    d.setFontSize(6.2); d.text("Capas: pavimento hidráulico de concreto f'c = 4,000 PSI, e = 0.15 m (negro) · base granular e = 0.15 m, compactada según AASHTO T-180 (achurado) · suelo natural, corte y nivelación (punteado). La elevación de cada estación corresponde a la rasante.", x, yy + 10);
   }
 
   function libretaTabla(d, v) {
@@ -2827,7 +2892,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   function readForm() {
     const n = (id) => { const x = parseFloat($(id).value); return isFinite(x) ? x : NaN; };
     return { nombre: $('p-nombre').value.trim(), mun: $('p-mun').value.trim(), dep: $('p-dep').value.trim(), monto: n('p-monto'), seg: n('p-seg'),
-      largo: n('p-largo'), ancho: n('p-ancho'), sep: n('p-sep'), remn: $('p-remc').checked ? (parseInt($('p-remn').value, 10) || 1) : 0, remw: $('p-remw').value.trim(), ter: $('p-ter').checked, corte: n('p-corte'), lib: $('p-lib').value, libu: $('p-libu').checked };
+      largo: n('p-largo'), ancho: n('p-ancho'), sep: n('p-sep'), remn: $('p-remc').checked ? (parseInt($('p-remn').value, 10) || 1) : 0, remw: $('p-remw').value.trim(), ter: $('p-ter').checked, corte: n('p-corte'), lib: $('p-lib').value, libu: $('p-libu').checked, libEst: $('p-lib').dataset.est === '1' };
   }
   function validate(v) {
     const bad = [];
@@ -3001,10 +3066,23 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
 
   /* ---- imágenes satelitales desde coordenadas (Esri World Imagery; la descarga la hace el navegador) ---- */
   const parseCoord = (s) => { s = String(s || '').trim(); if (!s) return NaN; const m = s.match(/(\d{1,3})\s*[°º]\s*(\d{1,2})\s*['′’]\s*(\d+(?:\.\d+)?)/); let v; if (m) v = +m[1] + m[2] / 60 + m[3] / 3600; else { const q = s.match(/-?\d+(?:\.\d+)?/); if (!q) return NaN; v = Math.abs(+q[0]); } return v; };
+  function utmToLL(E, N, zone) { const a = 6378137, f = 1 / 298.257223563, k0 = 0.9996, e2 = f * (2 - f), ep2 = e2 / (1 - e2), x = E - 500000, M = N / k0, mu = M / (a * (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256)), e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
+    const p = mu + (3 * e1 / 2 - 27 * Math.pow(e1, 3) / 32) * Math.sin(2 * mu) + (21 * e1 * e1 / 16 - 55 * Math.pow(e1, 4) / 32) * Math.sin(4 * mu) + (151 * Math.pow(e1, 3) / 96) * Math.sin(6 * mu) + (1097 * Math.pow(e1, 4) / 512) * Math.sin(8 * mu);
+    const s = Math.sin(p), c = Math.cos(p), tt = Math.tan(p), C1 = ep2 * c * c, T1 = tt * tt, N1 = a / Math.sqrt(1 - e2 * s * s), R1 = a * (1 - e2) / Math.pow(1 - e2 * s * s, 1.5), D = x / (N1 * k0);
+    const lat = p - (N1 * tt / R1) * (D * D / 2 - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) * Math.pow(D, 4) / 24 + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ep2 - 3 * C1 * C1) * Math.pow(D, 6) / 720);
+    const lon = (D - (1 + 2 * T1 + C1) * Math.pow(D, 3) / 6 + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ep2 + 24 * T1 * T1) * Math.pow(D, 5) / 120) / c;
+    return [(zone * 6 - 183) + lon * 180 / Math.PI, lat * 180 / Math.PI]; }
+  function parseUTM(txt) { const nums = String(txt || '').replace(/,/g, '').match(/\d+\.\d+|\d{6,7}/g) || [], pts = []; for (let i = 0; i < nums.length - 1; i++) { const e = +nums[i], n = +nums[i + 1]; if (e > 160000 && e < 840000 && n > 1200000 && n < 2100000) { pts.push([e, n]); i++; } } return pts; }
   function rutaGeo() {
     const dp = datosPl(), la0 = parseCoord(dp.latI), lo0 = -parseCoord(dp.lonI), la1 = parseCoord(dp.latF), lo1 = -parseCoord(dp.lonF);
     if (![la0, lo0, la1, lo1].every(isFinite)) return { err: 'Faltan las coordenadas de inicio y final (latitud y longitud).' };
     if (la0 < 13 || la0 > 18.5 || lo0 < -93 || lo0 > -87.5 || la1 < 13 || la1 > 18.5 || lo1 < -93 || lo1 > -87.5) return { err: 'Las coordenadas quedan fuera de Guatemala: revisa latitud y longitud.' };
+    const U = parseUTM($('p-utm') ? $('p-utm').value : '');
+    if (U.length >= 2) { // trazo exacto desde las coordenadas UTM de cada estación
+      const pp = U.map(([e, n]) => utmToLL(e, n, 15)), kk = 111320 * Math.cos(la0 * Math.PI / 180), d0 = Math.hypot((pp[0][0] - lo0) * kk, (pp[0][1] - la0) * 111320), d1 = Math.hypot((pp[pp.length - 1][0] - lo1) * kk, (pp[pp.length - 1][1] - la1) * 111320);
+      let nota = 'trazo exacto desde las ' + U.length + ' coordenadas UTM de las estaciones'; if (d0 > 40 || d1 > 40) nota += ' (OJO: el inicio o el final UTM se aleja ' + Math.round(Math.max(d0, d1)) + ' m de la latitud/longitud escrita: revísalas)';
+      return { pts: pp, nota, fit: true, la: (pp[0][1] + pp[pp.length - 1][1]) / 2, utm: true };
+    }
     const kx = 111320 * Math.cos(la0 * Math.PI / 180), ky = 111320, tx = (lo1 - lo0) * kx, ty = (la1 - la0) * ky;
     let loc = [[0, 0], [tx, ty]], nota = 'trazo recto entre inicio y final', fit = false;
     const v = readForm(); v.lib = $('p-lib').value; v.libA = null; let ok = false; try { ok = analizarLibreta(v); } catch (e) { ok = false; }
@@ -3110,6 +3188,62 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     ['d-latI', 'd-lonI', 'p-mun', 'p-dep'].forEach((id) => $(id).addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(calcAuto, 700); }));
     window._calcAuto = calcAuto; window._cenMun = cenMun; }
 
+
+  /* ---- libreta estimada a partir de coordenadas + trazo + modelo digital de terreno ---- */
+  function llToUtm(lat, lon, zone) { const a = 6378137, f = 1 / 298.257223563, k0 = 0.9996, e2 = f * (2 - f), ep2 = e2 / (1 - e2), l0 = (zone * 6 - 183) * Math.PI / 180, ph = lat * Math.PI / 180, la = lon * Math.PI / 180, s = Math.sin(ph), c = Math.cos(ph);
+    const N = a / Math.sqrt(1 - e2 * s * s), T = Math.tan(ph) * Math.tan(ph), C = ep2 * c * c, A = (la - l0) * c, M = a * ((1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * Math.pow(e2, 3) / 256) * ph - (3 * e2 / 8 + 3 * e2 * e2 / 32 + 45 * Math.pow(e2, 3) / 1024) * Math.sin(2 * ph) + (15 * e2 * e2 / 256 + 45 * Math.pow(e2, 3) / 1024) * Math.sin(4 * ph) - (35 * Math.pow(e2, 3) / 3072) * Math.sin(6 * ph));
+    const E = k0 * N * (A + (1 - T + C) * Math.pow(A, 3) / 6 + (5 - 18 * T + T * T + 72 * C - 58 * ep2) * Math.pow(A, 5) / 120) + 500000, Nn = k0 * (M + N * Math.tan(ph) * (A * A / 2 + (5 - T + 9 * C + 4 * C * C) * Math.pow(A, 4) / 24 + (61 - 58 * T + T * T + 600 * C - 330 * ep2) * Math.pow(A, 6) / 720));
+    return [E, Nn]; }
+  const demCache = {};
+  function demTile(z, tx, ty) { const k = z + '/' + tx + '/' + ty; if (!demCache[k]) demCache[k] = (async () => { const r = await fetch('https://s3.amazonaws.com/elevation-tiles-prod/terrarium/' + k + '.png', { mode: 'cors' }); if (!r.ok) throw new Error('HTTP ' + r.status); const bm = await createImageBitmap(await r.blob()), c = document.createElement('canvas'); c.width = bm.width; c.height = bm.height; const g = c.getContext('2d'); g.drawImage(bm, 0, 0); return g.getImageData(0, 0, c.width, c.height).data; })(); return demCache[k]; }
+  async function demAt(lat, lon) { const z = 15, n = Math.pow(2, z), fx = (lon + 180) / 360 * n, s = Math.sin(lat * Math.PI / 180), fy = (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n, px = fx * 256 - 0.5, py = fy * 256 - 0.5, x0 = Math.floor(px), y0 = Math.floor(py), tx = px - x0, ty = py - y0;
+    const val = async (X, Y) => { const tX = Math.floor(X / 256), tY = Math.floor(Y / 256), dd = await demTile(z, tX, tY), i = ((Y - tY * 256) * 256 + (X - tX * 256)) * 4; return dd[i] * 256 + dd[i + 1] + dd[i + 2] / 256 - 32768; };
+    const [a, b, c, e] = await Promise.all([val(x0, y0), val(x0 + 1, y0), val(x0, y0 + 1), val(x0 + 1, y0 + 1)]); return a * (1 - tx) * (1 - ty) + b * tx * (1 - ty) + c * (1 - tx) * ty + e * tx * ty; }
+  let libSet = false; $('p-lib').addEventListener('input', () => { if (!libSet) $('p-lib').dataset.est = '0'; });
+  async function generarLibreta(path) { // path: [[lon,lat],...] de inicio a final
+    const m = $('g-msg'); m.style.color = ''; const dp = datosPl(), la0 = path[0][1], kx = 111320 * Math.cos(la0 * Math.PI / 180), ky = 111320;
+    const anc = parseFloat($('p-ancho').value); if (!isFinite(anc) || anc <= 0) { m.style.color = '#b45309'; m.textContent = 'Escribe primero el ancho típico del camino (arriba, en los datos del proyecto).'; return; }
+    let loc = path.map(([lo, la]) => [(lo - path[0][0]) * kx, (la - la0) * ky]), Lp = 0; for (let i = 1; i < loc.length; i++) Lp += Math.hypot(loc[i][0] - loc[i - 1][0], loc[i][1] - loc[i - 1][1]);
+    if (Lp < 5) { m.style.color = '#b45309'; m.textContent = 'El inicio y el final están casi en el mismo punto: revisa las coordenadas.'; return; }
+    const larg = parseFloat($('p-largo').value); let nota = '';
+    if (isFinite(larg) && larg > 0) { const r = larg / Lp; if (r > 0.85 && r < 1.15) { loc = loc.map(([x, y]) => [x * r, y * r]); Lp = larg; nota = 'Ajusté el trazo al largo que escribiste (' + larg.toFixed(2) + ' m).'; } else nota = 'OJO: el largo que escribiste (' + larg.toFixed(1) + ' m) y el trazo (' + Lp.toFixed(1) + ' m) difieren más de 15%; usé el largo del trazo. Revisa las coordenadas o el trazo.'; }
+    let sp = Math.max(5, parseFloat($('g-sp').value) || 15); sp = Math.max(sp, Lp / 80);
+    const cum = [0]; for (let i = 1; i < loc.length; i++) cum.push(cum[i - 1] + Math.hypot(loc[i][0] - loc[i - 1][0], loc[i][1] - loc[i - 1][1]));
+    const at = (s) => { let i = 1; while (i < cum.length - 1 && cum[i] < s) i++; const t = cum[i] > cum[i - 1] ? (s - cum[i - 1]) / (cum[i] - cum[i - 1]) : 0; return [loc[i - 1][0] + (loc[i][0] - loc[i - 1][0]) * Math.min(1, Math.max(0, t)), loc[i - 1][1] + (loc[i][1] - loc[i - 1][1]) * Math.min(1, Math.max(0, t))]; };
+    const ss = []; for (let s = 0; s < Lp - sp * 0.35; s += sp) ss.push(s); ss.push(Lp);
+    const P = ss.map((s) => at(s)), LL = P.map(([x, y]) => [path[0][0] + x / kx, la0 + y / ky]);
+    m.textContent = 'Consultando las elevaciones del terreno…'; let el = null;
+    try { el = await Promise.all(LL.map(([lo, la]) => demAt(la, lo))); if (el.length > 2) el = el.map((v, i) => (i === 0 || i === el.length - 1) ? v : 0.25 * el[i - 1] + 0.5 * v + 0.25 * el[i + 1]); } catch (e) { el = null; }
+    const pr = (q) => { const k = Math.floor(q / 1000), r = q - k * 1000; return k + '+' + (r < 100 ? '0' : '') + (r < 10 ? '0' : '') + r.toFixed(2); };
+    const dm = (b) => { const dg = Math.floor(b), mm = Math.floor((b - dg) * 60), s = ((b - dg) * 60 - mm) * 60; return dg + '°' + mm + "'" + s.toFixed(2) + '"'; };
+    const w = 'Ancho: ' + anc.toFixed(2) + ' M', fe = (i) => el ? ' Elev=' + el[i].toFixed(2) : '', rows = ['E-1 0.00 ------ 0+000.00 ' + w + fe(0)];
+    for (let i = 1; i < P.length; i++) { const dx = P[i][0] - P[i - 1][0], dy = P[i][1] - P[i - 1][1], dd = Math.hypot(dx, dy), b = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360; rows.push('E-' + i + ' A E-' + (i + 1) + ' ' + dd.toFixed(2) + ' ' + dm(b) + ' ' + pr(ss[i]) + ' ' + w + fe(i)); }
+    libSet = true; $('p-lib').value = rows.join('\n'); $('p-lib').dataset.est = '1'; $('p-lib').dispatchEvent(new Event('input', { bubbles: true })); $('p-lib').dataset.est = '1'; libSet = false;
+    $('g-out').style.display = 'block'; $('g-out').value = rows.join('\n');
+    $('p-utm').value = LL.map(([lo, la]) => { const u = llToUtm(la, lo, 15); return u[0].toFixed(2) + '  ' + u[1].toFixed(2); }).join('\n');
+    if (!isFinite(parseFloat($('p-largo').value))) $('p-largo').value = Lp.toFixed(2);
+    m.style.color = el ? '#166534' : '#b45309'; m.textContent = 'Libreta estimada lista: ' + P.length + ' estaciones, largo ' + Lp.toFixed(2) + ' m' + (el ? ', desnivel ' + (Math.max(...el) - Math.min(...el)).toFixed(1) + ' m (de ' + el[0].toFixed(1) + ' a ' + el[el.length - 1].toFixed(1) + ' m).' : '. No se pudieron consultar las elevaciones (necesita internet): la libreta quedó sin elevación, escríbelas a mano.') + ' ' + nota + ' Estimación con modelo digital de terreno (±5 a 15 m): verifícala con topografía real antes de entregar.';
+  }
+  function coordsIF() { const dp = datosPl(), la0 = parseCoord(dp.latI), lo0 = -parseCoord(dp.lonI), la1 = parseCoord(dp.latF), lo1 = -parseCoord(dp.lonF); if (![la0, lo0, la1, lo1].every(isFinite)) return null; return [[lo0, la0], [lo1, la1]]; }
+  $('b-gen-recta').addEventListener('click', async () => { const c = coordsIF(); if (!c) { $('g-msg').style.color = '#b45309'; $('g-msg').textContent = 'Faltan las coordenadas de inicio y final (latitud y longitud).'; return; } try { await generarLibreta(c); } catch (e) { $('g-msg').style.color = '#b45309'; $('g-msg').textContent = 'No se pudo generar: ' + e.message; } });
+  const TR = { pts: [], z: 0, cx: 0, cy: 0, W: 1000, H: 700, base: null, ends: null };
+  const tLon = (px, z) => px / (256 * Math.pow(2, z)) * 360 - 180, tLat = (py, z) => { const n = Math.PI - 2 * Math.PI * py / (256 * Math.pow(2, z)); return 180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))); };
+  function trDraw() { const cv = $('g-cv'), g = cv.getContext('2d'); g.drawImage(TR.base, 0, 0); const E = TR.ends, X = (lo) => wx(lo, TR.z) - TR.cx + TR.W / 2, Y = (la) => wy(la, TR.z) - TR.cy + TR.H / 2, all = [E[0]].concat(TR.pts, [E[1]]);
+    g.lineJoin = 'round'; g.lineCap = 'round'; g.beginPath(); all.forEach(([lo, la], i) => (i ? g.lineTo(X(lo), Y(la)) : g.moveTo(X(lo), Y(la)))); g.strokeStyle = '#fff'; g.lineWidth = 8; g.stroke(); g.strokeStyle = '#e11d1d'; g.lineWidth = 4; g.stroke();
+    TR.pts.forEach(([lo, la], i) => { g.beginPath(); g.arc(X(lo), Y(la), 7, 0, 7); g.fillStyle = '#fff'; g.fill(); g.lineWidth = 2; g.strokeStyle = '#e11d1d'; g.stroke(); g.fillStyle = '#000'; g.font = 'bold 14px Arial'; g.fillText(String(i + 1), X(lo) + 9, Y(la) - 9); });
+    [[E[0], '#16a34a', 'INICIO'], [E[1], '#2563eb', 'FINAL']].forEach(([[lo, la], col, tx]) => { g.beginPath(); g.arc(X(lo), Y(la), 10, 0, 7); g.fillStyle = '#fff'; g.fill(); g.beginPath(); g.arc(X(lo), Y(la), 7, 0, 7); g.fillStyle = col; g.fill(); g.font = 'bold 15px Arial'; g.lineWidth = 4; g.strokeStyle = '#fff'; g.strokeText(tx, X(lo) + 12, Y(la) + 5); g.fillStyle = '#000'; g.fillText(tx, X(lo) + 12, Y(la) + 5); }); }
+  $('b-gen-trazo').addEventListener('click', async () => {
+    const m = $('g-msg'); m.style.color = ''; const c = coordsIF(); if (!c) { m.style.color = '#b45309'; m.textContent = 'Faltan las coordenadas de inicio y final (latitud y longitud).'; return; }
+    m.textContent = 'Descargando la imagen satelital…'; $('g-trazo').style.display = 'block'; TR.ends = c; TR.pts = [];
+    const W = TR.W, H = TR.H; let z = 18; for (; z > 10; z--) { if (Math.abs(wx(c[0][0], z) - wx(c[1][0], z)) <= W * 0.62 && Math.abs(wy(c[0][1], z) - wy(c[1][1], z)) <= H * 0.62) break; }
+    TR.z = z; TR.cx = (wx(c[0][0], z) + wx(c[1][0], z)) / 2; TR.cy = (wy(c[0][1], z) + wy(c[1][1], z)) / 2; const bc = document.createElement('canvas'); bc.width = W; bc.height = H; const bg = bc.getContext('2d'); bg.fillStyle = '#222'; bg.fillRect(0, 0, W, H);
+    const jobs = []; for (let ty = Math.floor((TR.cy - H / 2) / 256); ty <= Math.floor((TR.cy + H / 2) / 256); ty++) for (let tx = Math.floor((TR.cx - W / 2) / 256); tx <= Math.floor((TR.cx + W / 2) / 256); tx++) jobs.push((async () => { const r = await fetch('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/' + z + '/' + ty + '/' + tx, { mode: 'cors' }); if (!r.ok) throw new Error('HTTP ' + r.status); const bm = await createImageBitmap(await r.blob()); bg.drawImage(bm, tx * 256 - TR.cx + W / 2, ty * 256 - TR.cy + H / 2); })());
+    const rs = await Promise.allSettled(jobs); if (rs.every((q) => q.status === 'rejected')) { m.style.color = '#b45309'; m.textContent = 'No se pudo descargar la imagen satelital (necesita internet; abre la página autónoma directamente en Chrome, Edge o Safari). Puedes usar “Generar en línea recta”.'; $('g-trazo').style.display = 'none'; return; }
+    TR.base = bc; trDraw(); m.textContent = 'Toca sobre el camino, del inicio al final. Cuando termines pulsa “Usar este trazo y generar la libreta”.'; });
+  $('g-cv').addEventListener('pointerdown', (e) => { if (!TR.base) return; const cv = $('g-cv'), r = cv.getBoundingClientRect(), px = (e.clientX - r.left) * TR.W / r.width - TR.W / 2 + TR.cx, py = (e.clientY - r.top) * TR.H / r.height - TR.H / 2 + TR.cy; TR.pts.push([tLon(px, TR.z), tLat(py, TR.z)]); trDraw(); e.preventDefault(); });
+  $('b-g-undo').addEventListener('click', () => { TR.pts.pop(); if (TR.base) trDraw(); });
+  $('b-g-clear').addEventListener('click', () => { TR.pts = []; if (TR.base) trDraw(); });
+  $('b-g-ok').addEventListener('click', async () => { if (!TR.ends) return; try { await generarLibreta([TR.ends[0]].concat(TR.pts, [TR.ends[1]])); } catch (e) { $('g-msg').style.color = '#b45309'; $('g-msg').textContent = 'No se pudo generar: ' + e.message; } });
   /* ---- mapa de ubicación no satelital (OpenStreetMap, en blanco y negro) ---- */
   const _cab = {};
   async function cabecera() {
@@ -3300,6 +3434,13 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   $('b-libclr').addEventListener('click', () => { $('p-lib').value = ''; persist(); recompute(); });
   document.querySelectorAll('#form input, #form select').forEach((i) => i.addEventListener('input', () => { if (i.id === 'p-ter') $('f-corte').hidden = !i.checked; schedule(); }));
   document.querySelectorAll('[data-ex]').forEach((b) => b.addEventListener('click', () => { setForm(EXAMPLES[b.dataset.ex]); persist(); recompute(); }));
+
+  /* ---- modo: con / sin topografía ---- */
+  function setModo(m) { document.body.dataset.modo = m; $('modo-ov').hidden = true; $('modo-txt').textContent = m === 'sin' ? 'Modo: sin topografía (libreta estimada)' : 'Modo: con topografía'; if (m === 'sin') { $('p-libu').checked = true; if (!$('p-lib').value.trim()) $('p-lib').dataset.est = '1'; } else { $('p-libu').checked = true; } try { recompute(); } catch (e) {} }
+  $('m-con').addEventListener('click', () => setModo('con'));
+  $('m-sin').addEventListener('click', () => setModo('sin'));
+  $('modo-cambiar').addEventListener('click', () => { $('modo-ov').hidden = false; });
+  document.body.dataset.modo = 'con';
   recompute();
   try {
     if (window.claude && window.claude.use) window.claude.use('downloads').then((d) => { dl = d; dlReady = true; recompute(true); }, () => { dlReady = true; recompute(true); });
