@@ -3494,7 +3494,9 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     const mpp = 156543.03392 * Math.cos(cab.la * Math.PI / 180) / Math.pow(2, Z) / S0; // metros por píxel del mapa
     const mcLo = dentro ? (cab.lo + plo) / 2 : cab.lo + (cab.lo > plo ? -1 : 1) * 0, mcLa = dentro ? (cab.la + pla) / 2 : cab.la;
     // si el proyecto queda lejos, la cabecera se corre a la izquierda para dejar sitio al detalle del proyecto
-    const shift = dentro ? 0 : CW * 0.13 * mpp / kx(cab.la), M = await pinta(g, mcLo + shift, mcLa, S0, CW, CH);
+    const brg0 = Math.atan2((plo - cab.lo) * kx(cab.la), (pla - cab.la) * 111320), ux = dentro ? 1 : (Math.sin(brg0) >= 0 ? 1 : -1) * Math.max(0.6, Math.abs(Math.sin(brg0))), uy = dentro ? 0 : -Math.cos(brg0); // dirección real hacia el proyecto (norte arriba)
+    const cabX = CW / 2 - ux * CW * 0.16, cabY = CH / 2 - uy * CH * 0.2; // la cabecera va del lado contrario al proyecto
+    const M = await pinta(g, dentro ? mcLo : cab.lo + (CW / 2 - cabX) * mpp / kx(cab.la), dentro ? mcLa : cab.la + (cabY - CH / 2) * mpp / 111320, S0, CW, CH);
     let bigOK = !!M.ok, detOK = false;
     const pin = (x, y, col, w) => { g.save(); g.translate(x, y); g.beginPath(); g.moveTo(0, 0); g.bezierCurveTo(-w * 0.9, -w * 1.1, -w * 0.7, -w * 2.4, 0, -w * 2.4); g.bezierCurveTo(w * 0.7, -w * 2.4, w * 0.9, -w * 1.1, 0, 0); g.fillStyle = col; g.fill(); g.lineWidth = 3; g.strokeStyle = '#fff'; g.stroke(); g.beginPath(); g.arc(0, -w * 1.5, w * 0.38, 0, 7); g.fillStyle = '#fff'; g.fill(); g.restore(); };
     const caja = (lines, x, y, fs) => { fs = fs || 28; g.font = 'bold ' + fs + 'px Arial'; const w = Math.max(...lines.map((l) => g.measureText(l).width)) + 28, h = lines.length * (fs + 7) + 14; x = Math.max(12, Math.min(CW - w - 12, x)); y = Math.max(12, Math.min(CH - h - 12, y)); g.fillStyle = '#fff'; g.fillRect(x, y, w, h); g.strokeStyle = '#000'; g.lineWidth = 3; g.strokeRect(x, y, w, h); g.fillStyle = '#000'; g.textBaseline = 'middle'; g.textAlign = 'left'; lines.forEach((l, i) => g.fillText(l, x + 14, y + 12 + fs / 2 + i * (fs + 7))); return [x, y, w, h]; };
@@ -3510,7 +3512,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
       pin(mx, my, '#e11d1d', 32); caja(['P2 UBICACIÓN DEL PROYECTO', 'LATITUD: ' + dp.latI, 'LONGITUD: ' + dp.lonI, 'A ' + (dist / 1000).toFixed(2) + ' km DE LA CABECERA'], mx + 40, my - 100);
     } else {
       // detalle circular del proyecto, dibujado a escala sobre una cuadrícula
-      const D = 440, ix = CW - D / 2 - 70, iy = CH / 2 - 10, kk = kx(pla);
+      const D = 440, ix = CW / 2 + ux * (CW / 2 - D / 2 - 70), iy = CH / 2 - 10 + uy * 70, kk = kx(pla);
       const loc = R.pts.map(([lo, la]) => [(lo - plo) * kk, (la - pla) * 111320]); let ext = 20; loc.forEach(([x, y]) => { ext = Math.max(ext, Math.abs(x) * 2, Math.abs(y) * 2); }); const ms = (D * 0.5) / ext, ic = cv(D * KM, D * KM), ig = ic.getContext('2d'), px = (x) => D / 2 + x * ms, py = (y) => D / 2 - y * ms;
       ig.scale(KM, KM); ig.fillStyle = '#fff'; ig.fillRect(0, 0, D, D); let st = 10; for (const q of [10, 20, 25, 50, 100, 200, 500]) if (q * ms >= 46) { st = q; break; }
       let sat = false; // mapa de calles (NO satelital) detallado del lugar; si no hay detalle se usa el mapa gris de nivel 16
@@ -3546,16 +3548,17 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
       ig.beginPath(); ig.moveTo(D / 2, 34); ig.lineTo(D / 2 - 14, 76); ig.lineTo(D / 2, 66); ig.lineTo(D / 2 + 14, 76); ig.closePath(); ig.fillStyle = '#000'; ig.fill(); ig.fillText('N', D / 2, 24);
       g.save(); g.beginPath(); g.arc(ix, iy, D / 2, 0, 7); g.closePath(); g.fillStyle = '#fff'; g.fill(); g.clip(); g.drawImage(ic, ix - D / 2, iy - D / 2, D, D); g.restore(); g.beginPath(); g.arc(ix, iy, D / 2, 0, 7); g.setLineDash([22, 12]); g.lineWidth = 5; g.strokeStyle = '#000'; g.stroke(); g.setLineDash([]);
       caja(['DETALLE DEL PROYECTO · P2'], ix - D / 2 + 60, iy - D / 2 - 6, 30);
-      const brg = Math.atan2((plo - cab.lo) * kx(cab.la), (pla - cab.la) * 111320) * 180 / Math.PI, dirs = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'], dn = dirs[Math.round(((brg + 360) % 360) / 45) % 8];
+      const brg = brg0 * 180 / Math.PI, dirs = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'], dn = dirs[Math.round(((brg + 360) % 360) / 45) % 8];
       // ruta de acceso esquemática: sale de la cabecera, serpentea y llega al círculo del proyecto
-      const ax = cx + 26, ay = cy + 4, bxx = ix - D / 2, byy = iy, ddx = bxx - ax, amp = Math.min(150, Math.abs(ddx) * 0.22), c1 = [ax + ddx * 0.3, ay + amp], c2 = [ax + ddx * 0.62, byy + amp * 0.9];
+      const vx = ix - cx, vy = iy - cy, vl = Math.hypot(vx, vy) || 1, nx = vx / vl, ny = vy / vl, ax = cx + nx * 26, ay = cy + ny * 26 + 4, bxx = ix - nx * D / 2, byy = iy - ny * D / 2, ddx = bxx - ax, ddy = byy - ay, dl = Math.hypot(ddx, ddy) || 1;
+      let px2 = -ddy / dl, py2 = ddx / dl; if (py2 < 0) { px2 = -px2; py2 = -py2; } const amp = Math.min(150, dl * 0.22), c1 = [ax + ddx * 0.3 + px2 * amp, ay + ddy * 0.3 + py2 * amp], c2 = [ax + ddx * 0.62 + px2 * amp * 0.9, ay + ddy * 0.62 + py2 * amp * 0.9];
       const bz = (u) => { const v = 1 - u; return [v * v * v * ax + 3 * v * v * u * c1[0] + 3 * v * u * u * c2[0] + u * u * u * bxx, v * v * v * ay + 3 * v * v * u * c1[1] + 3 * v * u * u * c2[1] + u * u * u * byy]; };
       const tg = (u) => { const p = bz(Math.min(1, u + 0.01)), q = bz(Math.max(0, u - 0.01)); return Math.atan2(p[1] - q[1], p[0] - q[0]); };
       const curva = () => { g.beginPath(); g.moveTo(ax, ay); g.bezierCurveTo(c1[0], c1[1], c2[0], c2[1], bxx, byy); };
       g.lineJoin = 'round'; g.lineCap = 'round'; curva(); g.strokeStyle = '#fff'; g.lineWidth = 20; g.stroke(); curva(); g.strokeStyle = '#e11d1d'; g.lineWidth = 9; g.stroke(); curva(); g.strokeStyle = '#fff'; g.lineWidth = 2.5; g.setLineDash([16, 14]); g.stroke(); g.setLineDash([]);
       [0.22, 0.45, 0.72].forEach((u) => { const [qx, qy] = bz(u), an = tg(u); g.save(); g.translate(qx, qy); g.rotate(an); g.beginPath(); g.moveTo(14, 0); g.lineTo(-10, -11); g.lineTo(-10, 11); g.closePath(); g.fillStyle = '#fff'; g.fill(); g.restore(); });
       g.beginPath(); g.arc(bxx, byy, 16, 0, 7); g.fillStyle = '#fff'; g.fill(); g.beginPath(); g.arc(bxx, byy, 10, 0, 7); g.fillStyle = '#e11d1d'; g.fill();
-      { const [mx, my] = bz(0.5); g.font = 'bold 26px Arial'; const l1 = 'A ' + (dist / 1000).toFixed(1) + ' km AL ' + dn, l2 = 'ruta de acceso (esquemática)', w1 = Math.max(g.measureText(l1).width, (g.font = '22px Arial', g.measureText(l2).width)) + 28; caja([l1, l2], mx - w1 / 2 + 14, my - 128, 24); }
+      { const [mx, my] = bz(0.5); g.font = 'bold 26px Arial'; const l1 = 'A ' + (dist / 1000).toFixed(1) + ' km AL ' + dn, l2 = 'ruta de acceso (esquemática)', w1 = Math.max(g.measureText(l1).width, (g.font = '22px Arial', g.measureText(l2).width)) + 28; caja([l1, l2], mx - w1 / 2 + 14, my + 40, 24); }
       caja(['LATITUD: ' + dp.latI, 'LONGITUD: ' + dp.lonI], ix - D / 2 + 100, iy + D / 2 + 6, 26);
     }
     // escala, norte y créditos
