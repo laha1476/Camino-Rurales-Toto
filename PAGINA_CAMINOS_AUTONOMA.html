@@ -219,8 +219,8 @@ body[data-modo=con] .m-sin{display:none!important}
         <legend>Proyecto</legend>
         <div class="f"><label for="p-nombre">Nombre del proyecto</label><input class="txt" type="text" id="p-nombre"></div>
         <div class="row2">
-          <div class="f"><label for="p-mun">Municipio</label><input class="txt" type="text" id="p-mun" list="dl-mun" autocomplete="off" placeholder="Elige o escribe"></div>
-          <div class="f"><label for="p-dep">Departamento</label><input class="txt" type="text" id="p-dep" list="dl-dep" autocomplete="off" placeholder="Elige o escribe"><datalist id="dl-dep"></datalist><datalist id="dl-mun"></datalist></div>
+          <div class="f"><label for="p-mun">Municipio</label><select class="txt" id="p-mun"><option value="">Elige el municipio</option></select></div>
+          <div class="f"><label for="p-dep">Departamento</label><select class="txt" id="p-dep"><option value="">Elige el departamento</option></select><div class="hint" id="dep-msg" style="min-height:0"></div></div>
         </div>
       </fieldset>
       <fieldset>
@@ -2217,7 +2217,7 @@ const PdfGen = (function () {
     d.setFillColor(255); d.setDrawColor(0); d.setLineWidth(0.18); pts.forEach((p) => d.circle(X(p.acu), Y(p.el), 0.5, 'FD'));
     // ---- pendientes por tramo (con fondo blanco para leerse sobre la rejilla)
     d.setFont('helvetica', 'bold'); d.setFontSize(4.6);
-    for (let i = 1; i < n; i++) { const a = pts[i - 1], b = pts[i], dd = b.acu - a.acu; if (dd * cx < 11) continue; const pend = (b.el - a.el) / dd * 100, tx = (X(a.acu) + X(b.acu)) / 2, ty = Math.min(Y(a.el), Y(b.el)) - 3.6, tt = (pend > 0 ? '+' : '') + pend.toFixed(2) + '%', tw = d.getTextWidth(tt) + 1.2; if (ty - 2 > y) { d.setFillColor(255); d.rect(tx - tw / 2, ty - 2.1, tw, 2.9, 'F'); d.setTextColor(0); d.text(tt, tx, ty, { align: 'center' }); } }
+    for (let i = 1; i < n; i++) { const a = pts[i - 1], b = pts[i], dd = b.acu - a.acu; if (dd * cx < 11) continue; const pend = (b.el - a.el) / dd * 100, tx = (X(a.acu) + X(b.acu)) / 2, ty = Math.min(Y(a.el), Y(b.el)) - 3.6, tt = (pend > 0 ? '+' : '') + pend.toFixed(2) + '%', tw = d.getTextWidth(tt) + 1.2; if (ty - 2 > y) { d.setFillColor(255); d.rect(tx - tw / 2, ty - 2.1, tw, 2.9, 'F'); if (Math.abs(pend) > 12) d.setTextColor(190, 0, 0); else d.setTextColor(0); d.text(tt, tx, ty, { align: 'center' }); d.setTextColor(0); } }
     // ---- llamadas con flecha: pavimento, base y suelo natural (si hay espacio libre)
     const free = (q) => { const yy = yAt(q); return { up: yy - y, dn: y + h - (yy + pav + bas + 2.5) }; };
     const calls = [[0.2, ['PAVIMENTO HIDRÁULICO ESPESOR 0.15 MTS', "CONCRETO f'c = 4,000 PSI"], 0], [0.5, ['BASE GRANULAR (ARENA DE MINA + GRAVA)', 'E = 0.15 MTS COMPACTADA'], 1], [0.8, ['SUELO NATURAL', 'CORTE Y NIVELACIÓN'], 2]];
@@ -2243,7 +2243,6 @@ const PdfGen = (function () {
     for (let i = 1; i < n; i++) { const a = pts[i - 1], b = pts[i], dd = b.acu - a.acu, x0 = X(a.acu), x1 = X(b.acu); d.setLineWidth(0.12); d.line(x0, ry + 1, x0, ry + 4.4); if (i === n - 1) d.line(x1, ry + 1, x1, ry + 4.4); if ((x1 - x0) >= 6.4) d.text(nf(dd, 2), (x0 + x1) / 2, ry + 3, { align: 'center' }); }
     d.setFont('helvetica', 'bold'); d.setFontSize(4.1);
     keepIdx.forEach((i) => { const p = pts[i], xx = X(p.acu), tx = 'E-' + (i + 1) + '=' + prog(p.acu), te = 'Elev=' + nf(p.el, 2); const sh = i === n - 1 ? -2.1 : 0; d.text(tx, xx - 0.55 + sh, ry + 16.5, { angle: 90 }); d.setFont('helvetica', 'normal'); d.text(te, xx + 1.55 + sh, ry + 16.5, { angle: 90 }); d.setFont('helvetica', 'bold'); });
-    if (v.libEst) { d.setFont('helvetica', 'bolditalic'); d.setFontSize(4.2); d.setTextColor(150, 0, 0); d.text('PERFIL PRELIMINAR: elevaciones estimadas con modelo digital de terreno (±5 a 15 m); verificar con levantamiento topográfico.', x, ry + 21); d.setTextColor(0); }
     if (pos.noText) return;
     const yy = ry + 24;
     d.setFont('helvetica', 'bold'); d.setFontSize(7.5); d.text('ESCALA HORIZONTAL 1:' + G.Nh + '   ·   ESCALA VERTICAL 1:' + G.Nv + (G.Nv < G.Nh ? '   (exageración vertical ×' + nf(G.Nh / G.Nv, 1).replace(/\.0$/, '') + ')' : ''), x, yy);
@@ -2264,12 +2263,17 @@ const PdfGen = (function () {
       rows.slice(b * per, (b + 1) * per).forEach((r, j) => {
         const i = b * per + j, prev = rows[i - 1]; const pend = prev && isFinite(r.el) && isFinite(prev.el) && r.d > 0 ? ((r.el - prev.el) / r.d * 100).toFixed(2) : '';
         const vals = [r.lado, i === 0 ? '0.00' : nf(r.d, 2), i === 0 ? '------' : dms(r.az), prog(r.acu), nf(r.w, 2), isFinite(r.el) && r.el != null ? nf(r.el, 2) : '', pend];
-        let xx = bx; const yy = y0 + 6 + j * rh; cw.forEach((w, k) => { d.setFillColor(j % 2 ? 247 : 255); d.rect(xx, yy, w, rh, 'FD'); d.text(String(vals[k]), xx + w / 2, yy + 3.8, { align: 'center' }); xx += w; });
+        let xx = bx; const yy = y0 + 6 + j * rh; cw.forEach((w, k) => { d.setFillColor(j % 2 ? 247 : 255); d.rect(xx, yy, w, rh, 'FD'); (k === 6 && Math.abs(parseFloat(vals[6])) > 12 ? d.setTextColor(180, 0, 0) : d.setTextColor(0)), d.text(String(vals[k]), xx + w / 2, yy + 3.8, { align: 'center' }); xx += w; });
       });
     }
     const sy = 40 + 6 + per * rh + 8;
     d.setFont('helvetica', 'normal'); d.setFontSize(7.5);
     d.text('Tramo del proyecto (hasta donde alcanza el presupuesto): ' + prog(0) + ' a ' + prog(lib.largo) + '  ·  ' + rows.length + ' estaciones  ·  área ' + nf(lib.area, 1) + ' m2  ·  ancho medio ' + nf(lib.wavg, 2) + ' m  ·  juntas con anchos reales ' + lib.juntas + ' m', 18, sy);
+    d.setTextColor(0);
+    { const pe = []; for (let q = 1; q < rows.length; q++) if (isFinite(rows[q].el) && isFinite(rows[q - 1].el) && rows[q].d > 0) pe.push(Math.abs((rows[q].el - rows[q - 1].el) / rows[q].d * 100)); const hi = pe.filter((x) => x > 12).length;
+      d.setFont('helvetica', 'normal'); d.setFontSize(6.5);
+      if (hi) { d.setTextColor(180, 0, 0); d.text('PENDIENTES EN ROJO: ' + hi + ' de ' + pe.length + ' tramos superan 12 % (máx. ' + nf(Math.max.apply(null, pe), 2) + ' %). VERIFICAR EN CAMPO.', 20, sy + 6); d.setTextColor(0); }
+      }
   }
 
 
@@ -2428,6 +2432,8 @@ const PdfGen = (function () {
     ms.forEach((q, i) => { const c = Math.floor(i / rows), r = i % rows; d.setFont('helvetica', q === sel ? 'bold' : 'normal'); d.text((i + 1) + '. ' + q.n, x + 1.5 + c * cw, ly + 2 + r * lh); });
     return true;
   }
+  function llUtm(lat, lon) { const a = 6378137, f = 1 / 298.257223563, k0 = 0.9996, e2 = f * (2 - f), ep2 = e2 / (1 - e2), zone = Math.floor((lon + 180) / 6) + 1, l0 = (zone * 6 - 183) * Math.PI / 180, ph = lat * Math.PI / 180, la = lon * Math.PI / 180, s = Math.sin(ph), c = Math.cos(ph), N = a / Math.sqrt(1 - e2 * s * s), T = Math.tan(ph) * Math.tan(ph), C = ep2 * c * c, A = (la - l0) * c, M = a * ((1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * Math.pow(e2, 3) / 256) * ph - (3 * e2 / 8 + 3 * e2 * e2 / 32 + 45 * Math.pow(e2, 3) / 1024) * Math.sin(2 * ph) + (15 * e2 * e2 / 256 + 45 * Math.pow(e2, 3) / 1024) * Math.sin(4 * ph) - (35 * Math.pow(e2, 3) / 3072) * Math.sin(6 * ph));
+    return { zone, E: k0 * N * (A + (1 - T + C) * Math.pow(A, 3) / 6 + (5 - 18 * T + T * T + 72 * C - 58 * ep2) * Math.pow(A, 5) / 120) + 500000, N: k0 * (M + N * Math.tan(ph) * (A * A / 2 + (5 - T + 9 * C + 4 * C * C) * Math.pow(A, 4) / 24 + (61 - 58 * T + T * T + 600 * C - 330 * ep2) * Math.pow(A, 6) / 720)) }; }
   function pcoord(s) { if (s == null) return NaN; s = String(s).trim(); if (!s) return NaN; const neg = /[SsOoWw-]/.test(s) && !/^[+]/.test(s); const m = s.replace(/[^0-9.,]+/g, ' ').trim().split(/\s+/).map((q) => parseFloat(q.replace(',', '.'))); if (!m.length || !isFinite(m[0])) return NaN; const v = Math.abs(m[0]) + (m[1] || 0) / 60 + (m[2] || 0) / 3600; return neg ? -v : v; }
   function mapaMun(d, x, y, w, h, depN, munN, DA) { // contorno del municipio con el proyecto marcado (inicio y final)
     const dep = findDep(depN), sel = dep && findMun(dep, munN); if (!GEO || !sel) return false;
@@ -2464,8 +2470,8 @@ const PdfGen = (function () {
     // coordenadas
     const x0 = px(1018), y0 = px(530), w0 = px(200), rh = 2.9;
     d.setFillColor(255); d.setLineWidth(0.25); d.setDrawColor(0); d.rect(x0, y0, w0, rh * 7); d.setFont('helvetica', 'normal'); d.setFontSize(4.6);
-    ['COORDENADAS INICIO', 'LATITUD: ' + dd('latI'), 'LONGITUD: ' + dd('lonI'), 'COORDENADAS FINAL', 'LATITUD: ' + dd('latF'), 'LONGITUD: ' + dd('lonF'), 'METROS SOBRE NIVEL DEL MAR: ' + (DA.msnm || (lib && lib.hasEl ? nf(lib.pts[0].el, 0) : 'PENDIENTE'))].forEach((t, i) => { d.text(t, x0 + w0 / 2, y0 + rh * i + 2.1, { align: 'center' }); if (i) d.line(x0, y0 + rh * i, x0 + w0, y0 + rh * i); });
-    const u0 = px(1305), uw = px(150); d.rect(u0, y0 + 1.5, uw, rh * 4); ['COORDENADAS GEOGRAFICAS', 'COORDENADAS UTM', 'LATITUD: ' + dd('utmN'), 'LONGITUD: ' + dd('utmE')].forEach((t, i) => { d.text(t, u0 + uw / 2, y0 + 1.5 + rh * i + 2.1, { align: 'center' }); if (i) d.line(u0, y0 + 1.5 + rh * i, u0 + uw, y0 + 1.5 + rh * i); });
+    ['COORDENADAS INICIO', 'LATITUD: ' + dd('latI'), 'LONGITUD: ' + dd('lonI'), 'COORDENADAS FINAL', 'LATITUD: ' + dd('latF'), 'LONGITUD: ' + dd('lonF'), 'METROS SOBRE NIVEL DEL MAR: ' + (lib && lib.hasEl ? nf(lib.pts[0].el, 0) : (DA.msnm || 'PENDIENTE'))].forEach((t, i) => { d.text(t, x0 + w0 / 2, y0 + rh * i + 2.1, { align: 'center' }); if (i) d.line(x0, y0 + rh * i, x0 + w0, y0 + rh * i); });
+    const u0 = px(1305), uw = px(150); d.rect(u0, y0 + 1.5, uw, rh * 4); (() => { const la = pcoord(DA.latI), lo = -Math.abs(pcoord(DA.lonI)); if (!isFinite(la) || !isFinite(lo)) return ['COORDENADAS GEOGRAFICAS', 'COORDENADAS UTM', 'ESTE: PENDIENTE', 'NORTE: PENDIENTE']; const u = llUtm(la, lo), f2 = (x) => x.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); return ['COORDENADAS GEOGRAFICAS', 'COORDENADAS UTM (ZONA ' + u.zone + 'N, INICIO)', 'ESTE: ' + f2(u.E) + ' m', 'NORTE: ' + f2(u.N) + ' m']; })().forEach((t, i) => { d.text(t, u0 + uw / 2, y0 + 1.5 + rh * i + 2.1, { align: 'center' }); if (i) d.line(u0, y0 + 1.5 + rh * i, u0 + uw, y0 + 1.5 + rh * i); });
     // franja de situación actual + libreta
     if (lib) {
       const N = pickN(lib.pts, 138, 14); v.N1 = N, pts = lib.pts, nn = pts.length, wd = lib.largo;
@@ -2473,8 +2479,8 @@ const PdfGen = (function () {
       const dR = v.dirR, fq = (f) => (dR ? wd * (1 - f) : wd * f);
       endBox(d, T.X(pts[0].x) + (dR ? -30 : -6), 75.5, 'INICIO DEL PROYECTO', DA.latI || 'PENDIENTE', DA.lonI || 'PENDIENTE');
       endBox(d, T.X(pts[nn - 1].x) + (dR ? -6 : -34), 75.5, 'FINAL DEL PROYECTO', DA.latF || 'PENDIENTE', DA.lonF || 'PENDIENTE');
-      [0.46].forEach((f) => { const c = T.at(fq(f)), bx = T.X(c.x) - 14, py = T.Y(c.y) - c.w / 2 * T.s; const h = cajaNota(d, bx, 84, 28, 'TRAMO DE CAMINO A MEJORAR', 4); d.setLineWidth(0.15); d.line(bx + 6, 84 + h, T.X(c.x), py); });
-      d.setFont('helvetica', 'bold'); d.setFontSize(4.2); d.text('INICIO DE CAMINO', T.X(pts[0].x) + (dR ? -14 : 1), T.Y(pts[0].y) - T.at(0).w / 2 * T.s - 2); d.text('FINAL DE CAMINO', T.X(pts[nn - 1].x) + (dR ? 1 : -14), T.Y(pts[nn - 1].y) - T.at(wd).w / 2 * T.s - 2);
+      [0.46].forEach((f) => { const c = T.at(fq(f)), bx = T.X(c.x) - 14, py = T.Y(c.y) - c.w / 2 * T.s; const h = cajaNota(d, bx, 88, 28, 'TRAMO DE CAMINO A MEJORAR', 4); d.setLineWidth(0.15); d.line(bx + 6, 88 + h, T.X(c.x), py); });
+      { const sR = T.X(pts[0].x) > T.X(pts[nn - 1].x); d.setFont('helvetica', 'bold'); d.setFontSize(4.2); d.text('INICIO DE CAMINO', T.X(pts[0].x) + (sR ? 2 : -2), T.Y(pts[0].y) - T.at(0).w / 2 * T.s - 2, { align: sR ? 'left' : 'right' }); d.text('FINAL DE CAMINO', T.X(pts[nn - 1].x) + (sR ? -2 : 2), T.Y(pts[nn - 1].y) - T.at(wd).w / 2 * T.s - 2, { align: sR ? 'right' : 'left' }); }
       cubre(d, 1328, 496, 1395, 508, 1385, 503, 'ESCALA: 1/' + N);
       if (tableRows(lib).length <= 20) libRef(sub(d, 357, 113, 0.58), v, 0, 0);
     }
@@ -2498,8 +2504,8 @@ const PdfGen = (function () {
     const dR = v.dirR, fq = (f) => (dR ? wd * (1 - f) : wd * f);
     endBox(d, T.X(pts[0].x) + (dR ? -30 : -4), y0 - 2, 'INICIO DEL PROYECTO', DA.latI || 'PENDIENTE', DA.lonI || 'PENDIENTE');
     endBox(d, T.X(pts[n - 1].x) + (dR ? -4 : -30), y0 - 2, 'FINAL DEL PROYECTO', DA.latF || 'PENDIENTE', DA.lonF || 'PENDIENTE');
-    [0.2, 0.5, 0.78].forEach((f, i) => { const q = fq(f); callBox(d, T, q, 'TRAMO DE CAMINO A MEJORAR', T.X(T.at(q).x) - 22, y0 + 11 + (i % 2) * 2, 38, -T.at(q).w / 2 * T.s); });
-    d.setFont('helvetica', 'bold'); d.setFontSize(6.5); d.text('INICIO DE CAMINO', T.X(pts[0].x) + (dR ? -22 : 2), T.Y(pts[0].y) - T.at(0).w / 2 * T.s - 3); d.text('FINAL DE CAMINO', T.X(pts[n - 1].x) + (dR ? 2 : -22), T.Y(pts[n - 1].y) - T.at(wd).w / 2 * T.s - 3);
+    [0.14, 0.5, 0.86].forEach((f, i) => { const q = fq(f); callBox(d, T, q, 'TRAMO DE CAMINO A MEJORAR', T.X(T.at(q).x) - 22, y0 + 11 + (i % 2) * 2, 38, -T.at(q).w / 2 * T.s); });
+    { const sR = T.X(pts[0].x) > T.X(pts[n - 1].x); d.setFont('helvetica', 'bold'); d.setFontSize(6.5); d.text('INICIO DE CAMINO', T.X(pts[0].x) + (sR ? 3 : -3), T.Y(pts[0].y) - T.at(0).w / 2 * T.s - 3, { align: sR ? 'left' : 'right' }); d.text('FINAL DE CAMINO', T.X(pts[n - 1].x) + (sR ? -3 : 3), T.Y(pts[n - 1].y) - T.at(wd).w / 2 * T.s - 3, { align: sR ? 'right' : 'left' }); }
     cubre(d, 715, 508, 785, 526, 772, 519, 'ESCALA: 1/' + N);
     const F = (v.imgs && v.imgs.fotos) || [];
     if (F.length) {
@@ -2555,7 +2561,7 @@ const PdfGen = (function () {
     const G = perfilGeom(lib, 250, ph0), pty = Math.min(py + ph0 + 40, 272); crop(d, 'tp', 90, pty, 'H 1/' + G.Nh + ' V 1/' + G.Nv); crop(d, 'nomp', 242, pty - 2);
     const ly = Math.max(138, y2 + hS + 22 + 0);
     if (!spill && ly <= 160) libRef(d, v, 320, Math.max(ly, 128));
-    else if (!spill) libRef(d, v, 320, 160); else { d.setFont('helvetica', 'italic'); d.setFontSize(6.5); d.text('LIBRETA TOPOGRÁFICA: VER PLANO ' + T4 + '/' + T4 + ' (' + pts.length + ' estaciones)', 320, 150); }
+    else if (!spill) libRef(d, v, 320, 160); else { d.setFont('helvetica', 'italic'); d.setFontSize(6.5); d.text(('LIBRETA TOPOGRÁFICA') + ': VER PLANO ' + T4 + '/' + T4 + ' (' + pts.length + ' estaciones)', 320, 150); }
   }
 
   function plano4(d, R, v, T4) {
@@ -2882,11 +2888,11 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   function setForm(v) {
-    $('p-nombre').value = v.nombre; $('p-mun').value = v.mun; $('p-dep').value = v.dep;
+    $('p-nombre').value = v.nombre; window._setDepMun(v.dep, v.mun);
     $('p-monto').value = v.monto; $('p-seg').value = v.seg;
     $('p-largo').value = v.largo; $('p-ancho').value = v.ancho; $('p-sep').value = v.sep;
     $('p-remc').checked = v.remn > 0; $('p-remn').value = v.remn || 2; $('p-remw').value = v.remw; $('f-rem').hidden = !(v.remn > 0); $('rem-none').hidden = v.remn > 0; $('p-ter').checked = !!v.ter; $('p-corte').value = v.corte;
-    $('f-corte').hidden = !v.ter; $('p-lib').value = v.lib || ''; $('p-libu').checked = v.libu !== false;
+    $('f-corte').hidden = !v.ter; $('p-lib').value = v.lib || ''; $('p-libu').checked = v.libu !== false; try { chkDep(); } catch (e) { /* aún sin lista */ }
   }
   function analizarLibreta(v) {
     const box = $('lib-sum'); box.innerHTML = '';
@@ -2904,6 +2910,11 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
       const k = v.remn || 0; if (k) v.libWs = k === 2 ? [an.wIni, an.wFin] : [an.wFin];
       $('p-largo').value = v.largo; $('p-ancho').value = v.ancho;
     }
+    { const P = an.pts, sl = []; if (an.hasEl) for (let i = 1; i < P.length; i++) { const dd = P[i].acu - P[i - 1].acu; if (dd > 0 && isFinite(P[i].el) && isFinite(P[i - 1].el)) sl.push(Math.abs((P[i].el - P[i - 1].el) / dd * 100)); }
+      const hi = sl.filter((x) => x > 12).length; if (hi) h += '<br><span style="color:#b45309">⚠ <b>Pendientes:</b> ' + hi + ' de ' + sl.length + ' tramos pasan de 12 % (máximo ' + nf(Math.max.apply(null, sl), 1) + ' %). Un pavimento hidráulico rural normalmente no pasa de 12 a 15 %: verifica esas elevaciones en campo.</span>';
+      try { const dp = datosPl(), la0 = parseCoord(dp.latI), lo0 = parseCoord(dp.lonI), la1 = parseCoord(dp.latF), lo1 = parseCoord(dp.lonF);
+        if (!an.cortado && [la0, lo0, la1, lo1].every(isFinite) && an.rows.length > 2 && an.rows.slice(1).every((r) => r.az != null)) { let E = 0, N = 0; an.rows.slice(1).forEach((r) => { E += r.d * Math.sin(r.az * Math.PI / 180); N += r.d * Math.cos(r.az * Math.PI / 180); }); const kx = 111320 * Math.cos(la0 * Math.PI / 180), dE = (lo0 - lo1) * kx, dN = (la1 - la0) * 111320, off = Math.hypot(E - dE, N - dN);
+          if (off > 5) h += '<br><span style="color:#b45309">⚠ <b>Cierre:</b> el final de la libreta queda a ' + nf(off, 1) + ' m de la coordenada final que escribiste. Revisa azimuts o coordenadas.</span>'; } } catch (e) { /* sin coordenadas */ } }
     { const bad = an.rev.filter((x) => x.estado !== 'ok'), f = (x) => (isFinite(x) ? nf(x, 2) : '—');
       h += '<details style="margin-top:6px"' + (bad.length ? ' open' : '') + '><summary style="cursor:pointer;font-weight:600;color:' + (bad.length ? '#b45309' : 'inherit') + '">Revisión de la libreta: ' + (bad.length ? bad.length + ' fila(s) con observación' : 'todas las filas leídas sin observaciones') + '</summary><div class="scroll"><table style="font-size:12px;border-collapse:collapse;width:100%"><tr><th>Línea</th><th>Lado</th><th>Dist.</th><th>Azimut</th><th>Acum.</th><th>Ancho</th><th>Elev.</th><th>Estado</th></tr>' + an.rev.map((x) => { const r = x.r, c = x.estado === 'ok' ? '' : (x.estado === 'omitida' ? 'background:#fde2e2' : 'background:#fff3cd'); return '<tr style="' + c + '"><td>' + x.linea + '</td>' + (r ? '<td>' + esc(r.lado || '') + '</td><td>' + f(r.d) + '</td><td>' + (r.az == null ? '—' : f(r.az) + '°') + '</td><td>' + f(r.acu) + '</td><td>' + f(r.w) + '</td><td>' + f(r.el) + '</td><td>' + (x.estado === 'ok' ? 'OK' : esc(x.nota)) + '</td>' : '<td colspan="6"><code>' + esc(x.texto) + '</code></td><td>' + esc(x.nota) + '</td>') + '</tr>'; }).join('') + '</table></div></details>'; }
     box.innerHTML = h; return true;
@@ -2921,9 +2932,16 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     const s = ws.reduce((a, b) => a + b, 0), m2 = Math.floor(0.6 * s * 10 + 1e-9) / 10;
     return { m2, txt: 'Remate = 0.60 m × (' + ws.map((x) => nf(x)).join(' + ') + ') = ' + nf(m2, 1) + ' m²' + (usoLib ? ' · anchos tomados de la libreta (estación inicial y final); puedes cambiarlos arriba.' : '') + (usoMedio ? ' · usa el ancho medio del tramo (área ÷ largo); el ancho real del plano en cada remate puede variar hasta ±20%. Escríbelo arriba si lo tienes.' : '') };
   }
+  const kd = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]+/g, ' ').trim();
+  function normDep(txt) { const raw = String(txt || '').trim(); if (!raw) return ''; if (typeof GT_GEO === 'undefined') return raw.slice(0, 30); const k = ' ' + kd(raw) + ' '; let best = null, pos = 1e9;
+    GT_GEO.d.forEach((q) => { const n = kd(q.n), i = k.indexOf(' ' + n + ' '); if (i >= 0 && (i < pos || (i === pos && best && n.length > kd(best.n).length))) { best = q; pos = i; } }); return best ? best.n : ''; }
+  function chkDep() { const raw = $('p-dep').value.trim(), nd = normDep(raw), m = $('dep-msg'); if (!raw) { m.textContent = ''; return; }
+    if (!nd) { m.style.color = '#b45309'; m.textContent = 'No reconozco ese departamento: elígelo de la lista (los planos lo dejarán vacío).'; }
+    else if (nd !== raw) { $('p-dep').value = nd; m.style.color = '#b45309'; m.textContent = 'Había texto de más; quedó solo "' + nd + '".'; }
+    else m.textContent = ''; }
   function readForm() {
     const n = (id) => { const x = parseFloat($(id).value); return isFinite(x) ? x : NaN; };
-    return { nombre: $('p-nombre').value.trim(), mun: $('p-mun').value.trim(), dep: $('p-dep').value.trim(), monto: n('p-monto'), seg: n('p-seg'),
+    return { nombre: $('p-nombre').value.trim(), mun: $('p-mun').value.trim(), dep: normDep($('p-dep').value), monto: n('p-monto'), seg: n('p-seg'),
       largo: n('p-largo'), ancho: n('p-ancho'), sep: n('p-sep'), remn: $('p-remc').checked ? (parseInt($('p-remn').value, 10) || 1) : 0, remw: $('p-remw').value.trim(), ter: $('p-ter').checked, corte: n('p-corte'), lib: $('p-lib').value, libu: $('p-libu').checked, libEst: $('p-lib').dataset.est === '1' };
   }
   function validate(v) {
@@ -3107,9 +3125,11 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   $('i-fotos').addEventListener('change', async (e) => { const fs = Array.from(e.target.files).slice(0, 6); IMGS.fotos = (await Promise.all(fs.map(leerImg))).filter(Boolean); infoImgs(); });
 
   { // departamento / municipio: listas para elegir (los mapas del Plano 1 se dibujan solos con la selección)
-    const fillDep = () => { if (typeof GT_GEO === 'undefined') return; $('dl-dep').innerHTML = GT_GEO.d.map((q) => '<option value="' + q.n + '">').join(''); };
-    const fillMun = () => { if (typeof GT_GEO === 'undefined') return; const k = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim(), dv = k($('p-dep').value), dep = GT_GEO.d.find((q) => k(q.n) === dv); $('dl-mun').innerHTML = (dep ? GT_GEO.m.filter((m) => m.d === dep.n) : GT_GEO.m).map((m) => '<option value="' + m.n + '">').join(''); };
-    fillDep(); fillMun(); $('p-dep').addEventListener('input', fillMun); $('p-dep').addEventListener('change', fillMun);
+    const k = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const fillDep = () => { if (typeof GT_GEO === 'undefined') return; const cur = $('p-dep').value; $('p-dep').innerHTML = '<option value="">Elige el departamento</option>' + GT_GEO.d.map((q) => '<option value="' + q.n + '">' + q.n + '</option>').join(''); $('p-dep').value = cur; };
+    const fillMun = () => { if (typeof GT_GEO === 'undefined') return; const cur = $('p-mun').value, dep = GT_GEO.d.find((q) => q.n === $('p-dep').value); const L = dep ? GT_GEO.m.filter((m) => m.d === dep.n) : []; $('p-mun').innerHTML = '<option value="">' + (dep ? 'Elige el municipio (' + L.length + ')' : 'Primero elige el departamento') + '</option>' + L.map((m) => '<option value="' + m.n + '">' + m.n + '</option>').join(''); $('p-mun').value = L.some((m) => m.n === cur) ? cur : ''; };
+    window._setDepMun = (dv, mv) => { fillDep(); const d = GT_GEO.d.find((q) => k(q.n) === k(dv)); $('p-dep').value = d ? d.n : ''; fillMun(); const m = d && GT_GEO.m.find((q) => q.d === d.n && k(q.n) === k(mv)); $('p-mun').value = m ? m.n : ''; };
+    fillDep(); fillMun(); $('p-dep').addEventListener('change', () => { fillMun(); $('p-mun').dispatchEvent(new Event('input', { bubbles: true })); });
   }
   const datosPl = () => { const g = (i) => ($(i).value || '').trim(); return { latI: g('d-latI'), lonI: g('d-lonI'), latF: g('d-latF'), lonF: g('d-lonF'), utmN: g('d-utmN'), utmE: g('d-utmE'), msnm: g('d-msnm'), dist: g('d-dist') }; };
 
@@ -3169,7 +3189,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     const mpp = 156543.03392 * Math.cos(R.la * Math.PI / 180) / Math.pow(2, z) / s; let bm = 10; for (const q of [10, 20, 50, 100, 200, 500, 1000, 2000, 5000]) if (q / mpp < CW * 0.22) bm = q;
     g.fillStyle = 'rgba(255,255,255,.9)'; g.fillRect(14, CH - 46, bm / mpp + 24, 32); g.fillStyle = '#000'; g.fillRect(24, CH - 26, bm / mpp, 4); g.font = 'bold 15px Arial'; g.textBaseline = 'alphabetic'; g.fillText((bm >= 1000 ? bm / 1000 + ' km' : bm + ' m'), 24, CH - 31);
     g.fillStyle = 'rgba(255,255,255,.9)'; g.fillRect(CW - 70, 10, 52, 62); g.fillStyle = '#000'; g.beginPath(); g.moveTo(CW - 44, 16); g.lineTo(CW - 32, 58); g.lineTo(CW - 44, 50); g.lineTo(CW - 56, 58); g.closePath(); g.fill(); g.font = 'bold 14px Arial'; g.fillText('N', CW - 50, 72 - 6);
-    g.font = '12px Arial'; g.fillStyle = 'rgba(0,0,0,.65)'; const at = 'Imagery © Esri, Maxar, Earthstar Geographics'; g.fillText(at, CW - g.measureText(at).width - 8, CH - 8);
+    
     return { d: c.toDataURL('image/jpeg', 0.85), w: CW, h: CH, fallos: res.filter((q) => q.status === 'rejected').length };
   }
   $('b-sat').addEventListener('click', async () => {
@@ -3306,35 +3326,46 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     const P0 = R.pts[0], PN = R.pts[R.pts.length - 1], pla = (P0[1] + PN[1]) / 2, plo = (P0[0] + PN[0]) / 2;
     const dist = Math.hypot((plo - cab.lo) * kx(cab.la), (pla - cab.la) * 111320), dentro = dist < 1700;
     const ESRI = 'https://services.arcgisonline.com/ArcGIS/rest/services/';
-    const tile = async (path, z, tx, ty) => { const r = await fetch(ESRI + path + '/MapServer/tile/' + z + '/' + ty + '/' + tx, { mode: 'cors' }); if (!r.ok) throw new Error('HTTP ' + r.status); return createImageBitmap(await r.blob()); };
+    const tile = async (path, z, tx, ty) => { const r = await fetch(path === 'OSM' ? 'https://tile.openstreetmap.org/' + z + '/' + tx + '/' + ty + '.png' : ESRI + path + (path === 'OSM' ? '' : '/MapServer/tile/' + z + '/' + ty + '/' + tx), { mode: 'cors' }); if (!r.ok) throw new Error('HTTP ' + r.status); return createImageBitmap(await r.blob()); };
     const lev = (k, lo, hi) => { const q = k.getContext('2d'), im = q.getImageData(0, 0, k.width, k.height), a = im.data; for (let i = 0; i < a.length; i += 4) { const l = 0.3 * a[i] + 0.59 * a[i + 1] + 0.11 * a[i + 2], o = Math.max(0, Math.min(255, (l - lo) * 255 / (hi - lo))); a[i] = a[i + 1] = a[i + 2] = o; } q.putImageData(im, 0, 0); return k; };
     const cv = (w, h) => { const k = document.createElement('canvas'); k.width = w; k.height = h; return k; };
-    async function pinta(g, cLo, cLa, s, W, H) { // mapa base en grises tipo plano: calles en línea fina sobre fondo blanco, con nombres
+    async function pinta1(g, cLo, cLa, s, W, H, sp) { // una capa de mapa base en grises tipo plano
       const cx = wx(cLo, Z), cy = wy(cLa, Z), tx0 = Math.floor((cx - W / 2 / s) / 256), tx1 = Math.floor((cx + W / 2 / s) / 256), ty0 = Math.floor((cy - H / 2 / s) / 256), ty1 = Math.floor((cy + H / 2 / s) / 256), jobs = [];
+      g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
       for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) jobs.push((async () => {
-        const b1 = await tile('Canvas/World_Light_Gray_Base', Z, tx, ty), b2 = await tile('Canvas/World_Light_Gray_Reference', Z, tx, ty).catch(() => null), px = (tx * 256 - cx) * s + W / 2, py = (ty * 256 - cy) * s + H / 2;
-        const k = cv(b1.width, b1.height); k.getContext('2d').drawImage(b1, 0, 0); lev(k, 175, 232); g.drawImage(k, px, py, 256 * s + 0.6, 256 * s + 0.6);
+        const b1 = await tile(sp.base, Z, tx, ty), b2 = sp.ref ? await tile(sp.ref, Z, tx, ty).catch(() => null) : null, px = (tx * 256 - cx) * s + W / 2, py = (ty * 256 - cy) * s + H / 2;
+        const k = cv(b1.width, b1.height); k.getContext('2d').drawImage(b1, 0, 0); lev(k, sp.ref ? 175 : 95, sp.ref ? 232 : 252); g.drawImage(k, px, py, 256 * s + 0.6, 256 * s + 0.6);
         if (b2) { const k3 = cv(b2.width, b2.height), q3 = k3.getContext('2d'); q3.fillStyle = '#fff'; q3.fillRect(0, 0, k3.width, k3.height); q3.drawImage(b2, 0, 0); lev(k3, 10, 115); g.save(); g.globalCompositeOperation = 'multiply'; g.drawImage(k3, px, py, 256 * s + 0.6, 256 * s + 0.6); g.restore(); }
       })());
-      const rs = await Promise.allSettled(jobs); if (rs.every((q) => q.status === 'rejected')) throw new Error('sin descarga'); return { X: (lo) => (wx(lo, Z) - cx) * s + W / 2, Y: (la) => (wy(la, Z) - cy) * s + H / 2 };
+      const rs = await Promise.allSettled(jobs); if (rs.every((q) => q.status === 'rejected')) throw new Error('sin descarga');
+      const dB = g.getImageData(0, 0, W, H).data; let s1 = 0, s2 = 0, nn = 0; for (let i = 0; i < dB.length; i += 96) { const l = 0.3 * dB[i] + 0.59 * dB[i + 1] + 0.11 * dB[i + 2]; s1 += l; s2 += l * l; nn++; }
+      return { X: (lo) => (wx(lo, Z) - cx) * s + W / 2, Y: (la) => (wy(la, Z) - cy) * s + H / 2, sd: Math.sqrt(Math.max(0, s2 / nn - (s1 / nn) * (s1 / nn))) };
+    }
+    async function pinta(g, cLo, cLa, s, W, H) { // prueba varias fuentes hasta que una traiga calles
+      let last = null, err = null;
+      for (const sp of [{ base: 'Canvas/World_Light_Gray_Base', ref: 'Canvas/World_Light_Gray_Reference' }, { base: 'World_Street_Map' }, { base: 'OSM' }]) {
+        try { const r = await pinta1(g, cLo, cLa, s, W, H, sp); last = r; if (r.sd > 6) { r.ok = true; return r; } } catch (e) { err = e; }
+      }
+      if (!last) throw err || new Error('sin descarga'); last.ok = false; return last;
     }
     const c = cv(CW, CH), g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, CW, CH);
     const mpp = 156543.03392 * Math.cos(cab.la * Math.PI / 180) / Math.pow(2, Z) / S0; // metros por píxel del mapa
     const mcLo = dentro ? (cab.lo + plo) / 2 : cab.lo + (cab.lo > plo ? -1 : 1) * 0, mcLa = dentro ? (cab.la + pla) / 2 : cab.la;
     // si el proyecto queda lejos, la cabecera se corre a la izquierda para dejar sitio al detalle del proyecto
     const shift = dentro ? 0 : CW * 0.13 * mpp / kx(cab.la), M = await pinta(g, mcLo + shift, mcLa, S0, CW, CH);
+    let bigOK = !!M.ok, detOK = false;
     const pin = (x, y, col, w) => { g.save(); g.translate(x, y); g.beginPath(); g.moveTo(0, 0); g.bezierCurveTo(-w * 0.9, -w * 1.1, -w * 0.7, -w * 2.4, 0, -w * 2.4); g.bezierCurveTo(w * 0.7, -w * 2.4, w * 0.9, -w * 1.1, 0, 0); g.fillStyle = col; g.fill(); g.lineWidth = 3; g.strokeStyle = '#fff'; g.stroke(); g.beginPath(); g.arc(0, -w * 1.5, w * 0.38, 0, 7); g.fillStyle = '#fff'; g.fill(); g.restore(); };
     const caja = (lines, x, y, fs) => { fs = fs || 28; g.font = 'bold ' + fs + 'px Arial'; const w = Math.max(...lines.map((l) => g.measureText(l).width)) + 28, h = lines.length * (fs + 7) + 14; x = Math.max(12, Math.min(CW - w - 12, x)); y = Math.max(12, Math.min(CH - h - 12, y)); g.fillStyle = '#fff'; g.fillRect(x, y, w, h); g.strokeStyle = '#000'; g.lineWidth = 3; g.strokeRect(x, y, w, h); g.fillStyle = '#000'; g.textBaseline = 'middle'; g.textAlign = 'left'; lines.forEach((l, i) => g.fillText(l, x + 14, y + 12 + fs / 2 + i * (fs + 7))); return [x, y, w, h]; };
     const cx = M.X(cab.lo), cy = M.Y(cab.la);
     // anillos de distancia alrededor de la cabecera
     g.save(); g.setLineDash([14, 12]); g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 2; g.font = '22px Arial'; g.fillStyle = 'rgba(0,0,0,.65)'; g.textAlign = 'center'; g.textBaseline = 'middle';
     [500, 1000, 1500].forEach((m) => { const r = m / mpp; if (r < CH * 0.62 && r > 60) { g.beginPath(); g.arc(cx, cy, r, 0, 7); g.stroke(); g.save(); g.setLineDash([]); g.fillStyle = '#fff'; g.fillRect(cx + r - 38, cy - 13, 76, 26); g.fillStyle = 'rgba(0,0,0,.75)'; g.fillText(m >= 1000 ? (m / 1000) + ' km' : m + ' m', cx + r, cy); g.restore(); } }); g.restore();
-    pin(cx, cy, '#1d4ed8', 32); caja(['P-4', 'CENTRO DE ' + nombre.toUpperCase()], dentro ? cx + 34 : cx - 30, dentro ? cy - 70 : cy - 150);
+    pin(cx, cy, '#1d4ed8', 32); caja(['P1', 'CENTRO DE ' + nombre.toUpperCase()], dentro ? cx + 34 : cx - 30, dentro ? cy - 70 : cy - 150);
     const geo = (pts, pf) => pts.map(([lo, la]) => pf(lo, la));
     if (dentro) {
       const pp = geo(R.pts, (lo, la) => [M.X(lo), M.Y(la)]); g.lineJoin = 'round'; g.lineCap = 'round'; g.beginPath(); pp.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.strokeStyle = '#fff'; g.lineWidth = 22; g.stroke(); g.strokeStyle = '#e11d1d'; g.lineWidth = 11; g.stroke();
       const mx = M.X(plo), my = M.Y(pla); g.setLineDash([10, 8]); g.beginPath(); g.moveTo(cx, cy); g.lineTo(mx, my); g.strokeStyle = '#000'; g.lineWidth = 2.5; g.stroke(); g.setLineDash([]);
-      pin(mx, my, '#e11d1d', 32); caja(['P-5 UBICACIÓN DEL PROYECTO', 'LATITUD: ' + dp.latI, 'LONGITUD: ' + dp.lonI, 'A ' + (dist / 1000).toFixed(2) + ' km DE LA CABECERA'], mx + 40, my - 100);
+      pin(mx, my, '#e11d1d', 32); caja(['P2 UBICACIÓN DEL PROYECTO', 'LATITUD: ' + dp.latI, 'LONGITUD: ' + dp.lonI, 'A ' + (dist / 1000).toFixed(2) + ' km DE LA CABECERA'], mx + 40, my - 100);
     } else {
       // detalle circular del proyecto, dibujado a escala sobre una cuadrícula
       const D = 440, ix = CW - D / 2 - 70, iy = CH / 2 - 10, kk = kx(pla);
@@ -3342,7 +3373,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
       ig.fillStyle = '#fff'; ig.fillRect(0, 0, D, D); let st = 10; for (const q of [10, 20, 25, 50, 100, 200, 500]) if (q * ms >= 46) { st = q; break; }
       let sat = false; // mapa de calles (NO satelital) detallado del lugar; si no hay detalle se usa el mapa gris de nivel 16
       const mppE = 156543.03392 * Math.cos(pla * Math.PI / 180);
-      for (const [capa, zmax, ref] of [['World_Street_Map', 18, 'Reference/World_Transportation'], ['World_Street_Map', 17, null], ['Canvas/World_Light_Gray_Base', 16, 'Canvas/World_Light_Gray_Reference']]) {
+      for (const [capa, zmax, ref] of [['World_Street_Map', 18, 'Reference/World_Transportation'], ['OSM', 19, null], ['World_Street_Map', 17, null], ['Canvas/World_Light_Gray_Base', 16, 'Canvas/World_Light_Gray_Reference']]) {
         if (sat) break;
         try {
           const zi = Math.max(14, Math.min(zmax, Math.floor(Math.log2(mppE * ms)))), sI = ms * mppE / Math.pow(2, zi), cxI = wx(plo, zi), cyI = wy(pla, zi), hw = D / 2 / sI, jobsI = [];
@@ -3359,10 +3390,11 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
           }
         } catch (e) { sat = false; }
       }
+      detOK = sat;
       if (!sat) { ig.strokeStyle = 'rgba(0,0,0,.16)'; ig.lineWidth = 1.5; for (let m = -Math.ceil(D / ms / 2 / st) * st; m <= D / ms / 2; m += st) { ig.beginPath(); ig.moveTo(px(m), 0); ig.lineTo(px(m), D); ig.stroke(); ig.beginPath(); ig.moveTo(0, py(m)); ig.lineTo(D, py(m)); ig.stroke(); } }
       ig.lineJoin = 'round'; ig.lineCap = 'round'; ig.beginPath(); loc.forEach(([x, y], i) => (i ? ig.lineTo(px(x), py(y)) : ig.moveTo(px(x), py(y)))); ig.strokeStyle = '#fff'; ig.lineWidth = 15; ig.stroke(); ig.strokeStyle = '#e11d1d'; ig.lineWidth = 7; ig.stroke();
       ig.font = 'bold 19px Arial'; ig.textAlign = 'center'; ig.textBaseline = 'middle'; const n = loc.length;
-      if (n > 2 && n <= 40) loc.forEach(([x, y], i) => { const X = px(x), Y = py(y); ig.beginPath(); ig.arc(X, Y, 7, 0, 7); ig.fillStyle = '#fff'; ig.fill(); ig.lineWidth = 2.5; ig.strokeStyle = '#000'; ig.stroke(); const a = i ? Math.atan2(py(loc[i][1]) - py(loc[i - 1][1]), px(loc[i][0]) - px(loc[i - 1][0])) : Math.atan2(py(loc[1][1]) - Y, px(loc[1][0]) - X), off = a + Math.PI / 2; ig.lineWidth = 5; ig.strokeStyle = '#fff'; ig.strokeText(i === n - 1 ? 'FIN' : 'E-' + (i + 1), X + Math.cos(off) * 26, Y + Math.sin(off) * 26); ig.fillStyle = '#000'; ig.fillText(i === n - 1 ? 'FIN' : 'E-' + (i + 1), X + Math.cos(off) * 26, Y + Math.sin(off) * 26); });
+      if (n > 2 && n <= 40) loc.forEach(([x, y], i) => { const X = px(x), Y = py(y); ig.beginPath(); ig.arc(X, Y, 7, 0, 7); ig.fillStyle = '#fff'; ig.fill(); ig.lineWidth = 2.5; ig.strokeStyle = '#000'; ig.stroke(); const a = i ? Math.atan2(py(loc[i][1]) - py(loc[i - 1][1]), px(loc[i][0]) - px(loc[i - 1][0])) : Math.atan2(py(loc[1][1]) - Y, px(loc[1][0]) - X), off = a + Math.PI / 2; if (i === 0 || i === n - 1 || (i + 1) % 5 === 0) { ig.lineWidth = 5; ig.strokeStyle = '#fff'; ig.strokeText(i === n - 1 ? 'FIN' : 'E-' + (i + 1), X + Math.cos(off) * 30, Y + Math.sin(off) * 30); ig.fillStyle = '#000'; ig.fillText(i === n - 1 ? 'FIN' : 'E-' + (i + 1), X + Math.cos(off) * 30, Y + Math.sin(off) * 30); } });
       const dot = (x, y, col) => { ig.beginPath(); ig.arc(x, y, 14, 0, 7); ig.fillStyle = '#fff'; ig.fill(); ig.beginPath(); ig.arc(x, y, 9, 0, 7); ig.fillStyle = col; ig.fill(); };
       dot(px(loc[0][0]), py(loc[0][1]), '#16a34a'); dot(px(loc[n - 1][0]), py(loc[n - 1][1]), '#2563eb');
       ig.font = 'bold 22px Arial'; const tag = (txt, x, y) => { const w = ig.measureText(txt).width + 18; let bx = Math.max(14, Math.min(D - w - 14, x - w / 2)), by = Math.max(14, Math.min(D - 42, y)); ig.fillStyle = '#fff'; ig.fillRect(bx, by, w, 32); ig.strokeStyle = '#e11d1d'; ig.lineWidth = 2.5; ig.strokeRect(bx, by, w, 32); ig.fillStyle = '#b91c1c'; ig.textAlign = 'left'; ig.fillText(txt, bx + 9, by + 17); };
@@ -3371,7 +3403,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
       let bm = 10; for (const q of [10, 20, 25, 50, 100, 200, 500]) if (q * ms < D * 0.4) bm = q; ig.fillStyle = 'rgba(255,255,255,.85)'; ig.fillRect(D / 2 - bm * ms / 2 - 14, D - 76, bm * ms + 28, 46); ig.fillStyle = '#000'; ig.fillRect(D / 2 - bm * ms / 2, D - 42, bm * ms, 6); ig.font = 'bold 20px Arial'; ig.textAlign = 'center'; ig.fillText(bm + ' m', D / 2, D - 56);
       ig.beginPath(); ig.moveTo(D / 2, 34); ig.lineTo(D / 2 - 14, 76); ig.lineTo(D / 2, 66); ig.lineTo(D / 2 + 14, 76); ig.closePath(); ig.fillStyle = '#000'; ig.fill(); ig.fillText('N', D / 2, 24);
       g.save(); g.beginPath(); g.arc(ix, iy, D / 2, 0, 7); g.closePath(); g.fillStyle = '#fff'; g.fill(); g.clip(); g.drawImage(ic, ix - D / 2, iy - D / 2); g.restore(); g.beginPath(); g.arc(ix, iy, D / 2, 0, 7); g.setLineDash([22, 12]); g.lineWidth = 5; g.strokeStyle = '#000'; g.stroke(); g.setLineDash([]);
-      caja(['DETALLE DEL PROYECTO · P-5'], ix - D / 2 + 60, iy - D / 2 - 6, 30);
+      caja(['DETALLE DEL PROYECTO · P2'], ix - D / 2 + 60, iy - D / 2 - 6, 30);
       const brg = Math.atan2((plo - cab.lo) * kx(cab.la), (pla - cab.la) * 111320) * 180 / Math.PI, dirs = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'], dn = dirs[Math.round(((brg + 360) % 360) / 45) % 8];
       // ruta de acceso esquemática: sale de la cabecera, serpentea y llega al círculo del proyecto
       const ax = cx + 26, ay = cy + 4, bxx = ix - D / 2, byy = iy, ddx = bxx - ax, amp = Math.min(150, Math.abs(ddx) * 0.22), c1 = [ax + ddx * 0.3, ay + amp], c2 = [ax + ddx * 0.62, byy + amp * 0.9];
@@ -3386,9 +3418,9 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     }
     // escala, norte y créditos
     let bm2 = 100; for (const q of [50, 100, 200, 500, 1000]) if (q / mpp < CW * 0.14) bm2 = q; const bx0 = 36, by0 = CH - 64; g.fillStyle = '#fff'; g.fillRect(bx0 - 14, by0 - 38, bm2 / mpp + 28, 66); g.fillStyle = '#000'; g.fillRect(bx0, by0, bm2 / mpp, 9); g.fillStyle = '#fff'; g.fillRect(bx0 + bm2 / mpp / 2, by0 + 2, bm2 / mpp / 2 - 2, 5); g.font = 'bold 22px Arial'; g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillStyle = '#000'; g.fillText('0', bx0, by0 - 8); g.fillText(bm2 >= 1000 ? bm2 / 1000 + ' km' : bm2 + ' m', bx0 + bm2 / mpp - 24, by0 - 8);
-    g.font = '17px Arial'; g.fillStyle = 'rgba(0,0,0,.7)'; g.textAlign = 'left'; g.fillStyle = '#fff'; const at = 'Mapa base: Esri, HERE, Garmin, © OpenStreetMap contributors'; g.fillRect(bx0 + bm2 / mpp + 22, CH - 34, g.measureText(at).width + 10, 24); g.fillStyle = 'rgba(0,0,0,.75)'; g.fillText(at, bx0 + bm2 / mpp + 27, CH - 14);
+    g.font = '17px Arial'; g.fillStyle = 'rgba(0,0,0,.7)'; g.textAlign = 'left'; g.fillStyle = '#fff'; const at = (bigOK || detOK) ? '' : 'Esquema sin mapa base: no hay calles mapeadas en la zona'; if (at) { g.fillRect(bx0 + bm2 / mpp + 22, CH - 34, g.measureText(at).width + 10, 24); g.fillStyle = 'rgba(0,0,0,.75)'; g.fillText(at, bx0 + bm2 / mpp + 27, CH - 14); }
     g.strokeStyle = '#000'; g.lineWidth = 6; g.strokeRect(3, 3, CW - 6, CH - 6);
-    return { d: c.toDataURL('image/jpeg', 0.9), w: CW, h: CH, dist };
+    return { d: c.toDataURL('image/jpeg', 0.9), w: CW, h: CH, dist, base: !!(bigOK || detOK) };
   }
   $('b-mapa').addEventListener('click', async () => {
     const m = $('mapa-msg'), pv = $('mapa-prev'); pv.innerHTML = ''; m.style.color = '';
@@ -3398,8 +3430,8 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     try {
       let cab = await cabecera(), fuente = 'cabecera según OpenStreetMap';
       if (!cab) { const cc = (window._cenMun ? window._cenMun() : null); if (!cc) throw new Error('no se encontró el municipio'); cab = { la: cc[1], lo: cc[0] }; fuente = 'centro del municipio (no se halló la cabecera)'; }
-      const r = await mapaImg(cab, R, mu, datosPl()); IMGS.mapa = r; infoImgs(); const im = new Image(); im.src = r.d; im.style.cssText = 'width:100%;max-width:520px;border:1px solid #888;border-radius:6px'; pv.appendChild(im);
-      m.textContent = 'Listo: mapa de ubicación generado (' + fuente + '; proyecto a ' + (r.dist / 1000).toFixed(1) + ' km). Revísalo en el plano; si prefieres otro mapa, súbelo arriba.';
+      const r = await mapaImg(cab, R, mu, datosPl()); IMGS.mapa = r; infoImgs(); if (r.dist > 0 && $('d-dist').dataset.m !== '1') { $('d-dist').value = (r.dist / 1000).toFixed(1); } const im = new Image(); im.src = r.d; im.style.cssText = 'width:100%;max-width:520px;border:1px solid #888;border-radius:6px'; pv.appendChild(im);
+      if (!r.base) { m.style.color = '#b45309'; } m.textContent = (r.base ? '' : 'ATENCIÓN: no se descargaron calles del mapa base (sin internet o zona sin calles mapeadas); quedó solo el esquema. ') + 'Listo: mapa de ubicación generado (' + fuente + '; proyecto a ' + (r.dist / 1000).toFixed(1) + ' km). Revísalo en el plano; si prefieres otro mapa, súbelo arriba.';
     } catch (e) { m.style.color = '#b45309'; m.textContent = 'No se pudo generar el mapa (' + (e && e.message || e) + '). Necesita internet y abrir PAGINA_CAMINOS_AUTONOMA.html directamente en Chrome o Edge (no en la vista previa de Claude).'; }
     $('b-mapa').disabled = false;
   });
