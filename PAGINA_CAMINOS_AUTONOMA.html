@@ -1,3 +1,7 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Presupuestador de Caminos Rurales</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -167,7 +171,7 @@ body[data-modo=sin] .m-con{display:none!important}
 body[data-modo=con] .m-sin{display:none!important}
 #modo-ov{position:fixed;inset:0;background:rgba(20,24,28,.78);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px}
 #modo-ov[hidden]{display:none}
-#modo-ov .bx{background:var(--bg,#fff);color:var(--ink,#111);max-width:620px;width:100%;border-radius:10px;padding:22px}
+#modo-ov .bx{background:var(--card,#fff);color:var(--ink,#111);border:1px solid var(--line,#999);max-width:620px;width:100%;border-radius:10px;padding:22px}
 #modo-ov h2{margin:0 0 6px;font-size:20px}
 #modo-ov .op{display:block;width:100%;text-align:left;margin-top:12px;padding:14px;border:2px solid var(--line,#999);border-radius:8px;background:var(--soft,#f4f4f4);color:inherit;font:inherit;cursor:pointer}
 #modo-ov .op:hover{border-color:var(--accent,#c00)}
@@ -333,13 +337,13 @@ const Libreta = (function () {
   }
 
   function parse(text) {
-    const rows = []; const errs = [];
+    const rows = []; const errs = []; const rev = [];
     String(text || '').split(/\r?\n/).forEach((ln, i) => {
       if (!ln.trim()) return;
       if (/^(lado|estaci|e\s*e|dist|azimut)/i.test(ln.trim()) && !/\d/.test(ln.replace(/E-?\d+/gi, ''))) return; // encabezado
       const r = parseLine(ln);
-      if (!r || !isFinite(r.d) || !isFinite(r.w)) { errs.push('Línea ' + (i + 1) + ': no pude leer distancia y ancho'); return; }
-      rows.push(r);
+      if (!r || !isFinite(r.d) || !isFinite(r.w)) { errs.push('Línea ' + (i + 1) + ': no pude leer distancia y ancho'); rev.push({ linea: i + 1, texto: ln.trim(), r: null, estado: 'omitida', nota: 'No se pudo leer distancia y ancho; la fila NO se usó.' }); return; }
+      r.linea = i + 1; r.texto = ln.trim(); rows.push(r);
     });
     // distancias acumuladas: si la tabla trae la acumulada se respeta; si no, se suma
     let prev = 0;
@@ -349,7 +353,21 @@ const Libreta = (function () {
       else r.acu = prev + r.d;
       prev = r.acu;
     });
-    return { rows, errs };
+    // revisión fila por fila
+    let pe = 0;
+    rows.forEach((r, i) => {
+      const notas = [];
+      const m = (r.lado || '').match(/E-(\d+)(?: A E-(\d+))?/);
+      if (m && m[2]) { const a = +m[1], b = +m[2]; if (b !== a + 1) notas.push('salta estaciones (E-' + a + ' a E-' + b + ')'); if (pe && a !== pe) notas.push('no continúa la estación anterior (E-' + pe + ')'); pe = b; }
+      else if (m && i === 0) pe = +m[1];
+      if (i > 0 && r.az == null) notas.push('sin azimut: el tramo se dibuja recto');
+      if (r.acuCalc != null) notas.push('la acumulada de la tabla no coincide con la suma (' + r.acuCalc.toFixed(2) + ')');
+      if (!(r.w > 0)) notas.push('ancho en cero');
+      if (i > 0 && r.d > 100) notas.push('distancia muy grande (' + r.d.toFixed(2) + ' m)');
+      rev.push({ linea: r.linea, texto: r.texto, r, estado: notas.length ? 'aviso' : 'ok', nota: notas.join('; ') });
+    });
+    rev.sort((a, b) => a.linea - b.linea);
+    return { rows, errs, rev };
   }
 
   /* geometría (norte arriba, azimut horario desde el norte) */
@@ -396,7 +414,7 @@ const Libreta = (function () {
   function analyze(text, opt) {
     opt = opt || {};
     const P = parse(text);
-    if (P.rows.length < 3) return { ok: false, errs: P.errs.concat(['Se necesitan al menos 3 estaciones.']) };
+    if (P.rows.length < 3) return { ok: false, rev: P.rev, errs: P.errs.concat(['Se necesitan al menos 3 estaciones.']) };
     const B = build(P.rows);
     const total = { largo: B.pts[B.pts.length - 1].acu, area: area(B.pts) };
     const target = opt.areaTarget > 0 ? opt.areaTarget : null;
@@ -410,7 +428,7 @@ const Libreta = (function () {
     if (target != null && total.area < target * 0.995) warn.push('La libreta solo suma ' + total.area.toFixed(1) + ' m² y el monto alcanza para ' + target.toFixed(1) + ' m²: faltan ' + (target - total.area).toFixed(1) + ' m² (≈ ' + ((target - total.area) / wavg).toFixed(1) + ' m de camino).');
     if (C.cortado && total.largo - largo > 1) warn.push('La libreta es más larga que el proyecto: el tramo termina en la estación 0+' + largo.toFixed(2).padStart(6, '0') + ' (se descartan ' + (total.largo - largo).toFixed(2) + ' m).');
     P.rows.forEach((r) => { if (r.acuCalc != null) warn.push('En ' + (r.lado || 'una fila') + ' la distancia acumulada no coincide con la suma de distancias (' + r.acuCalc.toFixed(2) + '); se respeta la acumulada.'); });
-    return { ok: true, errs: P.errs, warn: warn.slice(0, 6), rows: P.rows, pts, all: B.pts, hasAz: B.hasAz, hasEl: B.hasEl, total, largo, area: ar, wavg, juntas, nT,
+    return { ok: true, rev: P.rev, errs: P.errs, warn: warn.slice(0, 6), rows: P.rows, pts, all: B.pts, hasAz: B.hasAz, hasEl: B.hasEl, total, largo, area: ar, wavg, juntas, nT,
       wIni: pts[0].w, wFin: pts[pts.length - 1].w, cortado: C.cortado };
   }
   return { parseLine, parse, build, area, cut, wAt, analyze };
@@ -2874,6 +2892,8 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
       const k = v.remn || 0; if (k) v.libWs = k === 2 ? [an.wIni, an.wFin] : [an.wFin];
       $('p-largo').value = v.largo; $('p-ancho').value = v.ancho;
     }
+    { const bad = an.rev.filter((x) => x.estado !== 'ok'), f = (x) => (isFinite(x) ? nf(x, 2) : '—');
+      h += '<details style="margin-top:6px"' + (bad.length ? ' open' : '') + '><summary style="cursor:pointer;font-weight:600;color:' + (bad.length ? '#b45309' : 'inherit') + '">Revisión de la libreta: ' + (bad.length ? bad.length + ' fila(s) con observación' : 'todas las filas leídas sin observaciones') + '</summary><div class="scroll"><table style="font-size:12px;border-collapse:collapse;width:100%"><tr><th>Línea</th><th>Lado</th><th>Dist.</th><th>Azimut</th><th>Acum.</th><th>Ancho</th><th>Elev.</th><th>Estado</th></tr>' + an.rev.map((x) => { const r = x.r, c = x.estado === 'ok' ? '' : (x.estado === 'omitida' ? 'background:#fde2e2' : 'background:#fff3cd'); return '<tr style="' + c + '"><td>' + x.linea + '</td>' + (r ? '<td>' + esc(r.lado || '') + '</td><td>' + f(r.d) + '</td><td>' + (r.az == null ? '—' : f(r.az) + '°') + '</td><td>' + f(r.acu) + '</td><td>' + f(r.w) + '</td><td>' + f(r.el) + '</td><td>' + (x.estado === 'ok' ? 'OK' : esc(x.nota)) + '</td>' : '<td colspan="6"><code>' + esc(x.texto) + '</code></td><td>' + esc(x.nota) + '</td>') + '</tr>'; }).join('') + '</table></div></details>'; }
     box.innerHTML = h; return true;
   }
   function remateM2(v) {
@@ -2978,9 +2998,9 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
       <div class="scroll">${priceTable()}</div><p><button type="button" class="link" id="b-reset">Restablecer precios de la lista</button></p></details>
       <details><summary><span class="t">Cómo se calcula</span><span class="m">reglas aplicadas</span></summary><div class="how">
       <ul>
-        <li><b>Área de diseño</b> = monto ÷ precio de diseño, hacia abajo a 0.05 m². Con Q 402,500 y Q 575/m² son 700 m².</li>
+        <li><b>Área de diseño</b> = monto ÷ precio de diseño, hacia abajo a 0.10 m². Con Q 402,500 y Q 575/m² son 700 m².</li>
         <li><b>Bordillo</b> = 2 × largo. <b>Pavimento y base</b> = área − 0.10 × bordillo. <b>Corte de cajuela</b> = área × 0.30 m (si hay pendiente, el volumen se ingresa).</li>
-        <li><b>Juntas</b> = (largo ÷ separación, redondeado) × ancho típico + largo.</li>
+        <li><b>Juntas</b> = área ÷ separación (transversales) + largo (longitudinal), redondeado al metro. Con libreta, se suman las longitudes del despiece real.</li>
         <li><b>Precios</b>: materiales y alquileres fijos de la lista. La mano de obra y los días de equipo se calibran dentro del rango observado en los proyectos de 2026.</li>
         <li><b>Cuadre</b>: cada precio unitario se redondea a Q 0.05; la diferencia se muestra en la fila “Ajuste de cuadre” de cada renglón y <b>Limpieza final</b> absorbe el residuo, como en los presupuestos de referencia.</li>
         <li>Indirectos: administración 10%, supervisión 10% y utilidades 10% sobre costos directos.</li>
@@ -2998,6 +3018,23 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
       if (isFinite(x) && x >= 0) prices[id] = x; else delete prices[id];
       persist(); recompute(true);
     }));
+    { const neg = R && R.renglones.some((r) => !(r.costo > 0) || !(r.qty > 0)), soft = R && !neg && R.alerts.some((a) => a.lvl === 'bad'), ids = ['b-xlsx', 'b-docx', 'b-pdf', 'b-dxf', 'b-todo', 'b-c3d'];
+      const old = $('b-ask'); if (old) old.remove();
+      if ((neg || soft) && !(soft && window.__force)) {
+        ids.forEach((i) => { $(i).disabled = true; });
+        const maxL = Math.floor(R.area / v.ancho * 10) / 10, needA = v.largo * v.ancho, pd = v.seg > 0 ? v.seg : 575, needM = Math.ceil(needA * pd / 2500) * 2500, dm = needM - v.monto;
+        setMsg('', '');
+        const d = document.createElement('div'); d.id = 'b-ask'; d.style.cssText = 'width:100%;border:2px solid #b45309;border-radius:8px;padding:12px;margin-top:8px;background:rgba(180,83,9,.07)';
+        d.innerHTML = '<b>El monto no alcanza para el camino que ingresaste.</b><div style="font-size:13px;margin:6px 0">Con Q ' + nf(v.monto, 2) + ' (a Q ' + nf(pd, 0) + '/m²) alcanzan ' + nf(R.area, 1) + ' m². Un camino de ' + nf(v.largo, 2) + ' m × ' + nf(v.ancho, 2) + ' m necesita unos ' + nf(needA, 1) + ' m². ¿Qué prefieres hacer?</div>'
+          + '<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" id="a-largo">Ajustar el área: reducir el largo a ' + nf(maxL, 1) + ' m (ancho ' + nf(v.ancho, 2) + ' m)</button><button type="button" class="btn alt" id="a-monto">Aumentar el presupuesto a Q ' + nf(needM, 2) + ' (+ Q ' + nf(dm, 2) + ')</button></div>'
+          + (soft ? '<div style="margin-top:6px"><button type="button" class="link" id="a-force">Exportar de todos modos, sin cambiar nada</button></div>' : '') + '<div style="font-size:12px;opacity:.8;margin-top:6px">El presupuesto nuevo se redondea hacia arriba a múltiplos de Q 2,500, como tus proyectos.</div>';
+        $('msg').after(d);
+        const ap = (id, val) => { $(id).value = val; $(id).dispatchEvent(new Event('input', { bubbles: true })); };
+        $('a-largo').addEventListener('click', () => ap('p-largo', maxL));
+        $('a-monto').addEventListener('click', () => ap('p-monto', needM));
+        if (soft) $('a-force').addEventListener('click', () => { window.__force = true; recompute(true); });
+      }
+      if (!soft) window.__force = false; }
     if (!dl) { $('b-xlsx').disabled = true; $('b-docx').disabled = true; $('b-pdf').disabled = true; $('b-dxf').disabled = true; $('b-todo').disabled = true; $('b-c3d').disabled = true; if (dlReady) setMsg('La descarga no está disponible en esta vista. Abre el artefacto en claude.ai para guardar los archivos.', 'err'); }
   }
 
@@ -3369,7 +3406,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
       } else if (tipo === 'pdf') {
         { const dp = datosPl(), falta = []; if (!dp.latI || !dp.lonI) falta.push('coordenadas de INICIO'); if (!dp.latF || !dp.lonF) falta.push('coordenadas FINALES'); const key = falta.join('|'); if (falta.length && window._advCoord !== key) { window._advCoord = key; $('imgbox').open = true; setMsg('Faltan las ' + falta.join(' y las ') + ' (latitud y longitud) en "Coordenadas, fotos y mapas para los planos". Complétalas, o vuelve a pulsar para generar con PENDIENTE.'); return; } }
         const ws = (v.remw || '').split(/[,;\s]+/).map(parseFloat).filter((x) => isFinite(x) && x > 0);
-        const doc = PdfGen.build(window.jspdf.jsPDF, R, meta, { remn: v.remn || 0, remwArr: ws.length ? ws : (v.libWs || []), lib: v.libu && v.libA ? v.libA : null, imgs: IMGS, datos: datosPl() });
+        const doc = PdfGen.build(window.jspdf.jsPDF, R, meta, { remn: v.remn || 0, remwArr: ws.length ? ws : (v.libWs || []), lib: v.libu && v.libA ? v.libA : null, libEst: !!v.libEst, imgs: IMGS, datos: datosPl() });
         data = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
         filename = 'PLANOS_TIPICOS_' + slug(v.nombre) + '.pdf';
       } else if (tipo === 'c3d') {
@@ -3402,7 +3439,13 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     }
   }
 
-  function persist() { store.set({ form: readForm(), prices }); }
+  const DATA_IDS = ['d-latI', 'd-lonI', 'd-latF', 'd-lonF', 'd-utmE', 'd-utmN', 'd-dist', 'd-msnm', 'p-utm', 'g-sp'], IMG_KEY = 'pcr:img3';
+  function persist() {
+    const datos = {}; DATA_IDS.forEach((i) => { datos[i] = $(i).value; });
+    store.set({ form: readForm(), prices, datos, est: $('p-lib').dataset.est === '1', modo: document.body.dataset.modo || '' });
+    try { localStorage.setItem(IMG_KEY, JSON.stringify(IMGS)); } catch (e) { /* fotos y mapas muy pesados: se conservan solo en esta sesión */ }
+  }
+  function limpiarDatos() { DATA_IDS.forEach((i) => { $(i).value = i === 'g-sp' ? '15' : ''; }); $('p-lib').dataset.est = '0'; Object.keys(IMGS).forEach((k) => delete IMGS[k]); ['g-out'].forEach((i) => { $(i).value = ''; $(i).style.display = 'none'; }); try { localStorage.removeItem(IMG_KEY); } catch (e) { /* sin almacenamiento */ } infoImgs(); }
 
   function recompute(keepOpen) {
     const openIdx = []; if (keepOpen) document.querySelectorAll('#results details').forEach((d, i) => { if (d.open) openIdx.push(i); });
@@ -3429,18 +3472,21 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   if (!saved) { try { const o = JSON.parse(localStorage.getItem(OLD_STORE) || 'null'); if (o && o.prices) saved = { prices: o.prices }; } catch (e) { /* sin datos previos */ } }
   prices = (saved && saved.prices) || {};
   setForm(saved && saved.form && isFinite(saved.form.monto) ? saved.form : EXAMPLES.nuevo);
+  if (saved && saved.datos) { DATA_IDS.forEach((i) => { if (saved.datos[i] != null) $(i).value = saved.datos[i]; }); if (saved.est) $('p-lib').dataset.est = '1'; }
+  try { const im = JSON.parse(localStorage.getItem(IMG_KEY) || 'null'); if (im) { Object.assign(IMGS, im); infoImgs(); } } catch (e) { /* sin fotos guardadas */ }
   $('p-lib').addEventListener('input', () => { schedule(); });
   $('b-libex').addEventListener('click', () => { $('p-lib').value = LIB_EJEMPLO; $('p-libu').checked = true; persist(); recompute(); });
   $('b-libclr').addEventListener('click', () => { $('p-lib').value = ''; persist(); recompute(); });
   document.querySelectorAll('#form input, #form select').forEach((i) => i.addEventListener('input', () => { if (i.id === 'p-ter') $('f-corte').hidden = !i.checked; schedule(); }));
-  document.querySelectorAll('[data-ex]').forEach((b) => b.addEventListener('click', () => { setForm(EXAMPLES[b.dataset.ex]); persist(); recompute(); }));
+  document.querySelectorAll('[data-ex]').forEach((b) => b.addEventListener('click', () => { limpiarDatos(); setForm(EXAMPLES[b.dataset.ex]); persist(); recompute(); }));
 
   /* ---- modo: con / sin topografía ---- */
-  function setModo(m) { document.body.dataset.modo = m; $('modo-ov').hidden = true; $('modo-txt').textContent = m === 'sin' ? 'Modo: sin topografía (libreta estimada)' : 'Modo: con topografía'; if (m === 'sin') { $('p-libu').checked = true; if (!$('p-lib').value.trim()) $('p-lib').dataset.est = '1'; } else { $('p-libu').checked = true; } try { recompute(); } catch (e) {} }
+  function setModo(m) { document.body.dataset.modo = m; $('modo-ov').hidden = true; $('modo-txt').textContent = m === 'sin' ? 'Modo: sin topografía (libreta estimada)' : 'Modo: con topografía'; if (m === 'sin') { $('p-libu').checked = true; if (!$('p-lib').value.trim()) $('p-lib').dataset.est = '1'; } else { $('p-libu').checked = true; } try { persist(); recompute(); } catch (e) {} }
   $('m-con').addEventListener('click', () => setModo('con'));
   $('m-sin').addEventListener('click', () => setModo('sin'));
   $('modo-cambiar').addEventListener('click', () => { $('modo-ov').hidden = false; });
   document.body.dataset.modo = 'con';
+  try { const sv = store.get(); if (sv && (sv.modo === 'con' || sv.modo === 'sin')) setModo(sv.modo); } catch (e) { /* sin modo guardado */ }
   recompute();
   try {
     if (window.claude && window.claude.use) window.claude.use('downloads').then((d) => { dl = d; dlReady = true; recompute(true); }, () => { dlReady = true; recompute(true); });
