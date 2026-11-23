@@ -202,7 +202,7 @@ body[data-modo=con] .m-sin{display:none!important}
       <div style="margin-bottom:6px"><button type="button" class="link" id="n-save" style="font-weight:700">Guardar en la nube</button> · <button type="button" class="link" id="n-copy">Guardar como proyecto nuevo (copia / ampliación)</button> · <button type="button" class="link" id="n-list">Actualizar lista</button> · <button type="button" class="link" id="n-out">Salir</button></div>
       <div id="n-lista" style="font-size:13px"></div></div>
     <div id="n-msg" style="font-size:12px;margin-top:6px;color:var(--ink-2)"></div>
-    <div style="font-size:11px;opacity:.7;margin-top:4px">La nube funciona al abrir la página autónoma (Chrome, Edge o Safari), no dentro de la vista previa del artefacto. Tus proyectos solo los ves tú.</div>
+    <div style="font-size:11px;opacity:.7;margin-top:4px">Primera vez: escribe tu correo y una contraseña y toca «Crear mi cuenta». Después solo toca «Entrar». Tus proyectos solo los ves tú. Funciona en la página autónoma, no en la vista previa del artefacto.</div>
   </div></details>
 <div style="font-size:13px;margin:0 0 8px"><span id="modo-txt"></span> · <button type="button" class="link" id="modo-cambiar">Cambiar</button></div>
   <div class="strip" aria-hidden="true"><svg id="strip" height="64"></svg></div>
@@ -3527,12 +3527,12 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
 
 
   /* ---- nube (Supabase): cuenta, proyectos guardados, fotos y mapas ---- */
-  const CK = 'pcr:cloud3', cloud = { url: '', key: '', ses: null, pid: null, dirty: false };
-  try { const c = JSON.parse(localStorage.getItem(CK) || 'null'); if (c) { cloud.url = c.url || ''; cloud.key = c.key || ''; cloud.ses = c.ses || null; cloud.pid = c.pid || null; } } catch (e) { /* sin datos de nube */ }
+  const CK = 'pcr:cloud3', DEF_URL = 'https://xfmgfvvtnbblvjtkbaam.supabase.co', DEF_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmbWdmdnZ0bmJibHZqdGtiYWFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNDEzNTEsImV4cCI6MjEwMDkxNzM1MX0.ykB8lTNOVI98CZqZGuGilE6tJmIq-4A7EJ-m1fH9de4', cloud = { url: DEF_URL, key: DEF_KEY, ses: null, pid: null, dirty: false };
+  try { const c = JSON.parse(localStorage.getItem(CK) || 'null'); if (c) { cloud.url = DEF_URL; cloud.key = DEF_KEY; cloud.ses = c.ses || null; cloud.pid = c.pid || null; } } catch (e) { /* sin datos de nube */ }
   const csave = () => { try { localStorage.setItem(CK, JSON.stringify({ url: cloud.url, key: cloud.key, ses: cloud.ses, pid: cloud.pid })); } catch (e) { /* sin almacenamiento */ } };
   const nmsg = (t, bad) => { $('n-msg').textContent = t; $('n-msg').style.color = bad ? '#b45309' : ''; };
-  function cstate() { const ok = cloud.url && cloud.key, on = !!cloud.ses; $('n-cfg').hidden = !!(ok && on); $('n-auth').hidden = !ok || on; $('n-proj').hidden = !on;
-    $('n-state').textContent = !ok ? 'sin conectar' : !on ? 'inicia sesión' : (cloud.ses.email || 'conectado') + (cloud.pid ? (cloud.dirty ? ' · cambios sin guardar' : ' · proyecto guardado') : ' · proyecto sin guardar'); }
+  function cstate() { const ok = cloud.url && cloud.key, on = !!cloud.ses; $('n-cfg').hidden = true; $('n-auth').hidden = !ok || on; $('n-proj').hidden = !on;
+    $('n-state').textContent = !ok ? 'sin conectar' : !on ? 'entra o crea tu cuenta' : (cloud.ses.email || 'conectado') + (cloud.pid ? (cloud.dirty ? ' · cambios sin guardar' : ' · proyecto guardado') : ' · proyecto sin guardar'); }
   window.cloudMark = () => { if (cloud.pid && !cloud.dirty) { cloud.dirty = true; cstate(); } };
   async function crefresh() { if (!cloud.ses || !cloud.ses.refresh_token) return false; try { const r = await fetch(cloud.url + '/auth/v1/token?grant_type=refresh_token', { method: 'POST', headers: { apikey: cloud.key, 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: cloud.ses.refresh_token }) }); if (!r.ok) return false; csess(await r.json()); return true; } catch (e) { return false; } }
   function csess(j) { cloud.ses = { access_token: j.access_token, refresh_token: j.refresh_token, user_id: (j.user || {}).id || (cloud.ses && cloud.ses.user_id), email: (j.user || {}).email || (cloud.ses && cloud.ses.email) }; csave(); }
@@ -3564,7 +3564,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   $('n-out').addEventListener('click', () => { cloud.ses = null; cloud.pid = null; cloud.dirty = false; csave(); cstate(); $('n-lista').innerHTML = ''; nmsg('Sesión cerrada.'); });
   $('n-save').addEventListener('click', wrapc(() => cguardar(false))); $('n-copy').addEventListener('click', wrapc(() => cguardar(true))); $('n-list').addEventListener('click', wrapc(clista));
   $('n-lista').addEventListener('click', wrapc(async (e) => { const a = e.target.closest('[data-ab]'), d = e.target.closest('[data-el]'); if (a) await cabrir(a.dataset.ab); else if (d) await celim(d.dataset.el); }));
-  cstate(); if (cloud.ses) clista().catch(() => nmsg('Sesión guardada; si no ves tus proyectos, vuelve a entrar.'));
+  $('n-url').value = cloud.url; $('n-key').value = cloud.key; $('nube').open = !cloud.ses; cstate(); if (cloud.ses) clista().catch(() => nmsg('Sesión guardada; si no ves tus proyectos, vuelve a entrar.'));
   /* ---- modo: con / sin topografía ---- */
   function setModo(m) { document.body.dataset.modo = m; $('modo-ov').hidden = true; $('modo-txt').textContent = m === 'sin' ? 'Modo: sin topografía (libreta estimada)' : 'Modo: con topografía'; if (m === 'sin') { $('p-libu').checked = true; if (!$('p-lib').value.trim()) $('p-lib').dataset.est = '1'; } else { $('p-libu').checked = true; } try { persist(); recompute(); } catch (e) {} }
   $('m-con').addEventListener('click', () => setModo('con'));
