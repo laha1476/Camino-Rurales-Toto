@@ -312,6 +312,7 @@ body[data-modo=con] .m-sin{display:none!important}
   <p class="foot">Borrador de apoyo. Los precios unitarios, los rendimientos y el ajuste de cuadre salen de las reglas observadas en proyectos anteriores y deben ser revisados por el ingeniero responsable antes de presentarlos.</p>
 </div>
 
+<div id="savebar" hidden style="position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:60;max-width:96vw;background:var(--card,#1b2733);color:var(--ink,#e8eef5);border:2px solid #f59e0b;border-radius:12px;padding:10px 14px;box-shadow:0 6px 24px rgba(0,0,0,.45);gap:10px;align-items:center;flex-wrap:wrap;font-size:14px"><span id="sb-txt" style="font-weight:600"></span><button type="button" id="sb-save" class="chip" style="font-weight:800;background:#f59e0b;color:#111;border-color:#f59e0b">Guardar cambios</button><button type="button" id="sb-copy" class="chip">Guardar como proyecto nuevo</button></div>
 <script>/* Libreta topográfica: lectura de la tabla pegada, geometría, área y corte del tramo. */
 const Libreta = (function () {
   const num = (s) => { const x = parseFloat(String(s).replace(/,/g, '')); return isFinite(x) ? x : NaN; };
@@ -3569,6 +3570,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   const csave = () => { try { localStorage.setItem(CK, JSON.stringify({ url: cloud.url, key: cloud.key, ses: cloud.ses, pid: cloud.pid })); } catch (e) { /* sin almacenamiento */ } };
   const nmsg = (t, bad) => { $('n-msg').textContent = t; $('n-msg').style.color = bad ? '#b45309' : ''; };
   function cstate() { const ok = cloud.url && cloud.key, on = !!cloud.ses; $('n-cfg').hidden = true; $('n-auth').hidden = !ok || on; $('n-proj').hidden = !on;
+    { const sb = $('savebar'), nm = (document.getElementById('p-nombre').value || 'este proyecto').trim(); if (!on) { sb.hidden = true; } else if (cloud.pid && cloud.dirty) { sb.hidden = false; $('sb-txt').textContent = 'Hay cambios sin guardar en «' + nm.slice(0, 60) + '»'; $('sb-save').textContent = 'Guardar cambios (reemplaza el guardado)'; $('sb-copy').hidden = false; } else if (!cloud.pid) { sb.hidden = false; $('sb-txt').textContent = 'Este proyecto aún no está guardado en la nube'; $('sb-save').textContent = 'Guardar en la nube'; $('sb-copy').hidden = true; } else sb.hidden = true; sb.style.display = sb.hidden ? 'none' : 'flex'; }
     $('n-state').textContent = !ok ? 'sin conectar' : !on ? 'entra o crea tu cuenta' : (cloud.ses.email || 'conectado') + (cloud.pid ? (cloud.dirty ? ' · cambios sin guardar' : ' · proyecto guardado') : ' · proyecto sin guardar'); }
   window.cloudMark = () => { if (cloud.pid && !cloud.dirty) { cloud.dirty = true; cstate(); } };
   async function crefresh() { if (!cloud.ses || !cloud.ses.refresh_token) return false; try { const r = await fetch(cloud.url + '/auth/v1/token?grant_type=refresh_token', { method: 'POST', headers: { apikey: cloud.key, 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: cloud.ses.refresh_token }) }); if (!r.ok) return false; csess(await r.json()); return true; } catch (e) { return false; } }
@@ -3599,6 +3601,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   ['n-url', 'n-key'].forEach((i) => $(i).addEventListener('input', () => { ccfg(); cstate(); }));
   $('n-in').addEventListener('click', wrapc(() => cauth(false))); $('n-up').addEventListener('click', wrapc(() => cauth(true)));
   $('n-out').addEventListener('click', () => { cloud.ses = null; cloud.pid = null; cloud.dirty = false; csave(); cstate(); $('n-lista').innerHTML = ''; nmsg('Sesión cerrada.'); });
+  $('sb-save').addEventListener('click', wrapc(async () => { $('sb-save').disabled = true; try { await cguardar(false); } finally { $('sb-save').disabled = false; } })); $('sb-copy').addEventListener('click', wrapc(() => cguardar(true)));
   $('n-save').addEventListener('click', wrapc(() => cguardar(false))); $('n-copy').addEventListener('click', wrapc(() => cguardar(true))); $('n-list').addEventListener('click', wrapc(clista));
   $('n-lista').addEventListener('click', wrapc(async (e) => { const a = e.target.closest('[data-ab]'), d = e.target.closest('[data-el]'); if (a) await cabrir(a.dataset.ab); else if (d) await celim(d.dataset.el); }));
   $('n-url').value = cloud.url; $('n-key').value = cloud.key; $('nube').open = !cloud.ses; cstate(); if (cloud.ses) clista().catch(() => nmsg('Sesión guardada; si no ves tus proyectos, vuelve a entrar.'));
