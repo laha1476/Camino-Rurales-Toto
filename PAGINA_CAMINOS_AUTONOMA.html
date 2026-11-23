@@ -251,7 +251,7 @@ body[data-modo=con] .m-sin{display:none!important}
           <div id="g-ask" hidden style="margin-top:8px;padding:10px;border:2px solid #b45309;border-radius:8px;font-size:13px"></div>
           <textarea id="g-out" rows="6" readonly spellcheck="false" style="margin-top:6px;display:none;font-size:12px" aria-label="Libreta estimada generada"></textarea>
           <div id="g-trazo" style="display:none;margin-top:8px">
-            <div style="font-size:12px;margin-bottom:4px">Toca sobre el camino, de <b style="color:#16a34a">inicio (verde)</b> a <b style="color:#2563eb">final (azul)</b>, cada vez que cambie de dirección. Más puntos = más fiel.</div>
+            <div style="font-size:12px;margin-bottom:4px"><b>Arrastra</b> los puntos verde y azul para ponerlos exactamente sobre el camino (las coordenadas se actualizan solas). Toca sobre el camino, de <b style="color:#16a34a">inicio (verde)</b> a <b style="color:#2563eb">final (azul)</b>, cada vez que cambie de dirección. Más puntos = más fiel.</div>
             <canvas id="g-cv" width="1000" height="700" style="width:100%;max-width:900px;border:1px solid var(--line,#999);border-radius:6px;touch-action:manipulation;background:#222"></canvas>
             <div style="margin-top:6px"><button type="button" id="b-g-undo" class="link">Deshacer último punto</button> <button type="button" id="b-g-clear" class="link" style="margin-left:10px">Borrar trazo</button> <button type="button" id="b-g-ok" class="link" style="font-weight:700;margin-left:10px">Usar este trazo y generar la libreta</button></div>
           </div>
@@ -3387,7 +3387,19 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     const jobs = []; for (let ty = Math.floor((TR.cy - H / 2) / 256); ty <= Math.floor((TR.cy + H / 2) / 256); ty++) for (let tx = Math.floor((TR.cx - W / 2) / 256); tx <= Math.floor((TR.cx + W / 2) / 256); tx++) jobs.push((async () => { const r = await fetch('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/' + z + '/' + ty + '/' + tx, { mode: 'cors' }); if (!r.ok) throw new Error('HTTP ' + r.status); const bm = await createImageBitmap(await r.blob()); bg.drawImage(bm, tx * 256 - TR.cx + W / 2, ty * 256 - TR.cy + H / 2); })());
     const rs = await Promise.allSettled(jobs); if (rs.every((q) => q.status === 'rejected')) { m.style.color = '#b45309'; m.textContent = 'No se pudo descargar la imagen satelital (necesita internet; abre la página autónoma directamente en Chrome, Edge o Safari). Puedes usar “Generar en línea recta”.'; $('g-trazo').style.display = 'none'; return; }
     TR.base = bc; trDraw(); m.textContent = 'Toca sobre el camino, del inicio al final. Cuando termines pulsa “Usar este trazo y generar la libreta”.'; });
-  $('g-cv').addEventListener('pointerdown', (e) => { if (!TR.base) return; const cv = $('g-cv'), r = cv.getBoundingClientRect(), px = (e.clientX - r.left) * TR.W / r.width - TR.W / 2 + TR.cx, py = (e.clientY - r.top) * TR.H / r.height - TR.H / 2 + TR.cy; TR.pts.push([tLon(px, TR.z), tLat(py, TR.z)]); trDraw(); e.preventDefault(); });
+  const dmsF = (v, h) => { v = Math.abs(v); let dg = Math.floor(v), mm = Math.floor((v - dg) * 60), ss2 = Math.round(((v - dg) * 60 - mm) * 60 * 100) / 100; if (ss2 >= 60) { ss2 = 0; mm++; } if (mm >= 60) { mm = 0; dg++; } return dg + '°' + String(mm).padStart(2, '0') + "'" + ss2.toFixed(2).padStart(5, '0') + '"' + h; };
+  function trEndsToInputs() { const [a, b] = TR.ends, set = (id, v) => { const e = $(id); e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }; set('d-latI', dmsF(a[1], a[1] >= 0 ? 'N' : 'S')); set('d-lonI', dmsF(a[0], a[0] <= 0 ? 'O' : 'E')); set('d-latF', dmsF(b[1], b[1] >= 0 ? 'N' : 'S')); set('d-lonF', dmsF(b[0], b[0] <= 0 ? 'O' : 'E')); }
+  (() => { const cv = $('g-cv'); let drag = null;
+    const pos = (e) => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * TR.W / r.width, (e.clientY - r.top) * TR.H / r.height, TR.W / r.width]; };
+    const toLL = (x, y) => [tLon(x - TR.W / 2 + TR.cx, TR.z), tLat(y - TR.H / 2 + TR.cy, TR.z)];
+    cv.addEventListener('pointerdown', (e) => { if (!TR.base) return; const [x, y, k] = pos(e), X = (lo) => wx(lo, TR.z) - TR.cx + TR.W / 2, Y = (la) => wy(la, TR.z) - TR.cy + TR.H / 2, R = 30 * k;
+      const cand = [['e', 0, TR.ends[0]], ['e', 1, TR.ends[1]]].concat(TR.pts.map((p, i) => ['p', i, p])); let best = null;
+      cand.forEach((c) => { const dd = Math.hypot(X(c[2][0]) - x, Y(c[2][1]) - y); if (dd < R && (!best || dd < best[0])) best = [dd, c]; });
+      if (best) { drag = { t: best[1][0], i: best[1][1] }; try { cv.setPointerCapture(e.pointerId); } catch (_) { /* sin captura */ } e.preventDefault(); return; }
+      TR.pts.push(toLL(x, y)); trDraw(); e.preventDefault(); });
+    cv.addEventListener('pointermove', (e) => { if (!drag) return; const [x, y] = pos(e), ll = toLL(x, y); if (drag.t === 'e') TR.ends[drag.i] = ll; else TR.pts[drag.i] = ll; trDraw(); e.preventDefault(); });
+    const fin = () => { if (!drag) return; const t = drag.t; drag = null; if (t === 'e') { trEndsToInputs(); $('g-msg').style.color = ''; $('g-msg').textContent = 'Punto movido: las coordenadas de inicio/final se actualizaron.'; } };
+    cv.addEventListener('pointerup', fin); cv.addEventListener('pointercancel', fin); })();
   $('b-g-undo').addEventListener('click', () => { TR.pts.pop(); if (TR.base) trDraw(); });
   $('b-g-clear').addEventListener('click', () => { TR.pts = []; if (TR.base) trDraw(); });
   $('b-g-ok').addEventListener('click', async () => { if (!TR.ends) return; try { await generarLibreta([TR.ends[0]].concat(TR.pts, [TR.ends[1]])); } catch (e) { $('g-msg').style.color = '#b45309'; $('g-msg').textContent = 'No se pudo generar: ' + e.message; } });
@@ -3480,7 +3492,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
       { const [sx, sy] = side(0, 1 < n ? 1 : 0); tag('INICIO', sx, sy - 16); } { const [sx, sy] = side(n - 1, n - 2 >= 0 ? n - 2 : 0); tag('FINAL', sx, sy - 16); }
       let bm = 10; for (const q of [10, 20, 25, 50, 100, 200, 500]) if (q * ms < D * 0.4) bm = q; ig.fillStyle = 'rgba(255,255,255,.85)'; ig.fillRect(D / 2 - bm * ms / 2 - 14, D - 76, bm * ms + 28, 46); ig.fillStyle = '#000'; ig.fillRect(D / 2 - bm * ms / 2, D - 42, bm * ms, 6); ig.font = 'bold 20px Arial'; ig.textAlign = 'center'; ig.fillText(bm + ' m', D / 2, D - 56);
       ig.beginPath(); ig.moveTo(D / 2, 34); ig.lineTo(D / 2 - 14, 76); ig.lineTo(D / 2, 66); ig.lineTo(D / 2 + 14, 76); ig.closePath(); ig.fillStyle = '#000'; ig.fill(); ig.fillText('N', D / 2, 24);
-      g.save(); g.beginPath(); g.arc(ix, iy, D / 2, 0, 7); g.closePath(); g.fillStyle = '#fff'; g.fill(); g.clip(); g.drawImage(ic, ix - D / 2, iy - D / 2); g.restore(); g.beginPath(); g.arc(ix, iy, D / 2, 0, 7); g.setLineDash([22, 12]); g.lineWidth = 5; g.strokeStyle = '#000'; g.stroke(); g.setLineDash([]);
+      g.save(); g.beginPath(); g.arc(ix, iy, D / 2, 0, 7); g.closePath(); g.fillStyle = '#fff'; g.fill(); g.clip(); g.drawImage(ic, ix - D / 2, iy - D / 2, D, D); g.restore(); g.beginPath(); g.arc(ix, iy, D / 2, 0, 7); g.setLineDash([22, 12]); g.lineWidth = 5; g.strokeStyle = '#000'; g.stroke(); g.setLineDash([]);
       caja(['DETALLE DEL PROYECTO · P2'], ix - D / 2 + 60, iy - D / 2 - 6, 30);
       const brg = Math.atan2((plo - cab.lo) * kx(cab.la), (pla - cab.la) * 111320) * 180 / Math.PI, dirs = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'], dn = dirs[Math.round(((brg + 360) % 360) / 45) % 8];
       // ruta de acceso esquemática: sale de la cabecera, serpentea y llega al círculo del proyecto
