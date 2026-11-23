@@ -2964,9 +2964,9 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     h += '<br>Juntas con los anchos de la libreta: ' + an.juntas + ' m' + (area ? ' · área del monto: ' + nf(area, 1) + ' m²' : '');
     an.warn.concat(an.errs.slice(0, 3)).forEach((w) => { h += '<br>⚠ ' + esc(w); });
     if (v.libu) {
-      if (!(est && v.largo > 5)) v.largo = Math.round(an.largo * 100) / 100; v.ancho = Math.round(an.wavg * 100) / 100; v.juntasLib = an.juntas;
+      if (!est) v.largo = Math.round(an.largo * 100) / 100; v.ancho = Math.round(an.wavg * 100) / 100; v.juntasLib = an.juntas;
       const k = v.remn || 0; if (k) v.libWs = k === 2 ? [an.wIni, an.wFin] : [an.wFin];
-      if (!(est && parseFloat($('p-largo').value) > 5)) $('p-largo').value = v.largo; $('p-ancho').value = v.ancho;
+      if (!est) $('p-largo').value = v.largo; if (document.activeElement !== $('p-ancho')) $('p-ancho').value = v.ancho;
     }
     { const c = $('lib-cuadre'); if (c) { if (est && area) { const real = an.area, dif = area - real, pc = Math.abs(dif) / area * 100, wl = an.wFin > 0 ? an.wFin : an.wavg; c.hidden = false;
         if (pc < 1) { c.style.borderColor = '#16a34a'; c.innerHTML = '✔ <b>El área cuadra:</b> los anchos y el largo dan <b>' + nf(real, 1) + ' m²</b> y el monto alcanza para <b>' + nf(area, 1) + ' m²</b> (diferencia ' + nf(Math.abs(dif), 1) + ' m²).'; }
