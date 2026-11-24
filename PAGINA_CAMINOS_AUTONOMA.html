@@ -1002,7 +1002,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   /* ---------- cantidades a partir de las entradas ---------- */
   function quantities(inp) {
     const pd = inp.precio || inp.precioDiseno || 575;
-    const area = floorTo(inp.monto / pd, 0.1);
+    const area = inp.areaFija > 0 ? Math.round(inp.areaFija * 100) / 100 : floorTo(inp.monto / pd, 0.1); // areaFija: área real de la libreta de los planos
     const bordillo = r2(2 * inp.largo);
     const pav = floorTo(area - 0.1 * bordillo, 0.1);
     const sep = inp.sep || 2.5;
@@ -3651,12 +3651,13 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     v.lib = $('p-lib').value; v.libu = $('p-libu').checked; v.libWs = null; v.juntasLib = null; v.libA = null;
     const libOk = analizarLibreta(v);
     if (libOk && v.libu) bad = validate(v);
+    v.areaPl = null; if (libOk && v.libu && v.libA && v.monto > 0 && v.seg > 0) { const am = v.monto / v.seg; if (Math.abs(v.libA.area - am) / am <= 0.01) v.areaPl = v.libA.area; } // el presupuesto usa el área de los planos si cuadra con el monto (±1 %)
     const rm = remateM2(v); v.rem = rm.m2; $('rem-hint').textContent = rm.txt; $('f-rem').hidden = !$('p-remc').checked; $('rem-none').hidden = $('p-remc').checked;
     drawStrip(v.largo);
     let R = null;
     if (!bad.length) {
       try {
-        R = Engine.solve(RULES, { monto: v.monto, largo: v.largo, ancho: v.ancho, sep: v.sep, juntas: v.juntasLib, remateM2: v.rem, terreno: v.ter, corteM3: v.corte, precio: v.seg }, prices);
+        R = Engine.solve(RULES, { monto: v.monto, largo: v.largo, ancho: v.ancho, sep: v.sep, juntas: v.juntasLib, remateM2: v.rem, terreno: v.ter, corteM3: v.corte, precio: v.seg, areaFija: v.areaPl }, prices);
       } catch (e) { bad.push('los datos (' + e.message + ')'); }
     }
     current = R ? { v, R } : null;
