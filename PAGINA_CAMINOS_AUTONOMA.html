@@ -211,7 +211,7 @@ body[data-modo=con] .m-sin{display:none!important}
     <div id="n-msg" style="font-size:12px;margin-top:6px;color:var(--ink-2)"></div>
     <div style="font-size:11px;opacity:.7;margin-top:4px">Primera vez: escribe tu correo y una contraseña y toca «Crear mi cuenta». Después solo toca «Entrar». Tus proyectos solo los ves tú. Funciona en la página autónoma, no en la vista previa del artefacto.</div>
   </div></details>
-<div style="font-size:13px;margin:0 0 8px"><span id="modo-txt"></span> · <button type="button" class="link" id="modo-cambiar">Cambiar</button></div>
+<div style="font-size:13px;margin:0 0 8px"><span id="modo-txt"></span> · <button type="button" class="link" id="modo-cambiar">Cambiar</button> · <button type="button" class="link" id="b-actualizar" style="font-weight:700">⟳ Actualizar (traer y generar lo que falte)</button><div id="act-msg" style="font-size:12px;margin-top:4px"></div></div>
   <div class="strip" aria-hidden="true"><svg id="strip" height="64"></svg></div>
 
   <div class="grid">
@@ -3183,7 +3183,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
       const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, sx, sy, sw, sh, 0, 0, c.width, c.height);
       res({ d: c.toDataURL('image/jpeg', 0.82), w: c.width, h: c.height }); }; im.onerror = () => res(null); im.src = fr.result; }; fr.onerror = () => res(null); fr.readAsDataURL(file); });
   }
-  function infoImgs() { const n = (IMGS.fotos || []).length, o = ['ubic', 'loc', 'gt', 'dep', 'mun', 'mapa'].filter((k) => IMGS[k]).length; $('i-info').textContent = (n || o) ? ('Cargadas: ' + n + ' foto(s) y ' + o + ' imagen(es) de mapa.') : ''; }
+  function infoImgs() { const n = (IMGS.fotos || []).length, o = ['ubic', 'loc', 'gt', 'dep', 'mun', 'mapa'].filter((k) => IMGS[k]).length; $('i-info').textContent = (n || o) ? ('Cargadas: ' + n + ' foto(s) y ' + o + ' imagen(es) de mapa.') : ''; try { if (window.__ready && typeof persist === 'function') persist(); } catch (e) { /* aún sin cargar */ } }
   [['i-ubic', 'ubic', 403 / 222], ['i-loc', 'loc', 403 / 222], ['i-gt', 'gt', 455 / 295], ['i-dep', 'dep', 258 / 304], ['i-mun', 'mun', 190 / 103], ['i-mapa', 'mapa', 1303 / 476]].forEach(([id, k, asp]) => $(id).addEventListener('change', async (e) => { const f = e.target.files[0]; IMGS[k] = f ? await leerImg(f, asp) : null; infoImgs(); }));
   $('i-fotos').addEventListener('change', async (e) => { const fs = Array.from(e.target.files).slice(0, 6); IMGS.fotos = (await Promise.all(fs.map(leerImg))).filter(Boolean); infoImgs(); });
 
@@ -3422,7 +3422,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   window.addEventListener('resize', () => { if (TR.base && $('g-trazo').style.display !== 'none') { trSize(); trDraw(); } }); document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && TR.full) trFull(false); });
   $('b-gen-trazo').addEventListener('click', () => {
     const m = $('g-msg'); m.style.color = ''; const c = coordsIF(); if (!c) { m.style.color = '#b45309'; m.textContent = 'Faltan las coordenadas de inicio y final (latitud y longitud).'; return; }
-    if (!TR.orig) TR.orig = JSON.parse(JSON.stringify(c)); TR.ends = c; TR.pts = []; TR.ok = TR.bad = 0; $('g-trazo').style.display = 'block'; TR.base = true; trSize(); trFit(); trDraw();
+    if (!TR.orig) TR.orig = JSON.parse(JSON.stringify(c)); TR.ends = c; TR.pts = TR.pend || []; TR.pend = null; TR.ok = TR.bad = 0; $('g-trazo').style.display = 'block'; TR.base = true; trSize(); trFit(); trDraw();
     m.textContent = 'Toca el mapa, del inicio al final, en cada cambio de dirección. Usa «Ampliar» y pellizca para acercar. Cuando termines pulsa «Usar este trazo y generar la libreta».'; $('g-trazo').scrollIntoView({ block: 'nearest' }); });
   const dmsF = (v, h) => { v = Math.abs(v); let dg = Math.floor(v), mm = Math.floor((v - dg) * 60), ss2 = Math.round(((v - dg) * 60 - mm) * 60 * 100) / 100; if (ss2 >= 60) { ss2 = 0; mm++; } if (mm >= 60) { mm = 0; dg++; } return dg + '°' + String(mm).padStart(2, '0') + "'" + ss2.toFixed(2).padStart(5, '0') + '"' + h; };
   function trEndsToInputs() { TR.setting = true; const [a, b] = TR.ends, set = (id, v) => { const e = $(id); e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }; set('d-latI', dmsF(a[1], a[1] >= 0 ? 'N' : 'S')); set('d-lonI', dmsF(a[0], a[0] <= 0 ? 'O' : 'E')); set('d-latF', dmsF(b[1], b[1] >= 0 ? 'N' : 'S')); set('d-lonF', dmsF(b[0], b[0] <= 0 ? 'O' : 'E')); TR.setting = false; }
@@ -3636,10 +3636,10 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     }
   }
 
-  const DATA_IDS = ['d-latI', 'd-lonI', 'd-latF', 'd-lonF', 'd-utmE', 'd-utmN', 'd-dist', 'd-msnm', 'p-utm', 'g-sp'], IMG_KEY = 'pcr:img3';
+  const DATA_IDS = ['d-latI', 'd-lonI', 'd-latF', 'd-lonF', 'd-utmE', 'd-utmN', 'd-dist', 'd-msnm', 'p-utm', 'g-sp', 'g-cc'], IMG_KEY = 'pcr:img3';
   function persist() {
     const datos = {}; DATA_IDS.forEach((i) => { datos[i] = $(i).value; });
-    store.set({ form: readForm(), prices, datos, est: $('p-lib').dataset.est === '1', modo: document.body.dataset.modo || '' });
+    store.set({ form: readForm(), prices, datos, est: $('p-lib').dataset.est === '1', modo: document.body.dataset.modo || '', tr: { pts: TR.pts, orig: TR.orig } });
     if (typeof cloudMark === 'function') cloudMark();
     try { localStorage.setItem(IMG_KEY, JSON.stringify(IMGS)); } catch (e) { /* fotos y mapas muy pesados: se conservan solo en esta sesión */ }
   }
@@ -3693,8 +3693,8 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   function csess(j) { cloud.ses = { access_token: j.access_token, refresh_token: j.refresh_token, user_id: (j.user || {}).id || (cloud.ses && cloud.ses.user_id), email: (j.user || {}).email || (cloud.ses && cloud.ses.email) }; csave(); }
   async function creq(path, o) { o = o || {}; const go = () => { const h = Object.assign({ apikey: cloud.key, Authorization: 'Bearer ' + (cloud.ses ? cloud.ses.access_token : cloud.key) }, o.headers || {}); let b = o.body; if (b !== undefined && !o.raw) { h['Content-Type'] = 'application/json'; b = JSON.stringify(b); } return fetch(cloud.url + path, { method: o.method || 'GET', headers: h, body: b }); };
     let r = await go(); if (r.status === 401 && cloud.ses && await crefresh()) r = await go(); if (!r.ok) { let m = ''; try { const j = await r.json(); m = j.message || j.error_description || j.msg || j.error || ''; } catch (e) { /* sin detalle */ } throw new Error((m || 'Error ' + r.status) + (r.status === 401 ? ' (vuelve a iniciar sesión)' : '')); } return r; }
-  function snapshot() { const datos = {}; DATA_IDS.forEach((i) => { datos[i] = $(i).value; }); return { form: readForm(), datos, est: $('p-lib').dataset.est === '1', modo: document.body.dataset.modo || 'con', prices }; }
-  function restaurar(s) { limpiarDatos(); setForm(s.form); DATA_IDS.forEach((i) => { if (s.datos && s.datos[i] != null) $(i).value = s.datos[i]; }); $('p-lib').dataset.est = s.est ? '1' : '0'; prices = s.prices || {}; setModo(s.modo === 'sin' ? 'sin' : 'con'); }
+  function snapshot() { const datos = {}; DATA_IDS.forEach((i) => { datos[i] = $(i).value; }); return { form: readForm(), datos, est: $('p-lib').dataset.est === '1', modo: document.body.dataset.modo || 'con', prices, tr: { pts: TR.pts, orig: TR.orig } }; }
+  function restaurar(s) { limpiarDatos(); setForm(s.form); DATA_IDS.forEach((i) => { if (s.datos && s.datos[i] != null) $(i).value = s.datos[i]; }); $('p-lib').dataset.est = s.est ? '1' : '0'; prices = s.prices || {}; TR.pend = s.tr && s.tr.pts && s.tr.pts.length ? s.tr.pts : null; TR.orig = s.tr && s.tr.orig ? s.tr.orig : null; setModo(s.modo === 'sin' ? 'sin' : 'con'); }
   async function clista() { const r = await creq('/rest/v1/pcr_proyectos?select=id,nombre,municipio,departamento,monto,updated_at&order=updated_at.desc'), rows = await r.json(), box = $('n-lista');
     box.innerHTML = rows.length ? rows.map((p) => '<div style="display:flex;gap:8px;align-items:center;padding:5px 0;border-top:1px solid var(--line,#ccc);flex-wrap:wrap' + (p.id === cloud.pid ? ';background:rgba(37,99,235,.08)' : '') + '"><div style="flex:1;min-width:200px"><b>' + esc(p.nombre || 'Sin nombre') + '</b><br><span style="opacity:.75;font-size:12px">' + esc([p.municipio, p.departamento].filter(Boolean).join(', ')) + (p.monto ? ' · Q ' + nf(p.monto, 2) : '') + ' · ' + new Date(p.updated_at).toLocaleString('es-GT') + '</span></div><button type="button" class="link" data-ab="' + p.id + '" style="font-weight:600">Abrir</button><button type="button" class="link" data-el="' + p.id + '">Eliminar</button></div>').join('') : '<i>Todavía no hay proyectos guardados.</i>'; }
   async function cguardar(copia) { if (!cloud.ses) return; nmsg('Guardando…'); const s = snapshot(), f = s.form, row = { nombre: f.nombre || 'Proyecto sin nombre', municipio: f.mun || null, departamento: f.dep || null, monto: isFinite(f.monto) ? f.monto : null, datos: s, updated_at: new Date().toISOString() };
@@ -3721,6 +3721,26 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   $('n-save').addEventListener('click', wrapc(() => cguardar(false))); $('n-copy').addEventListener('click', wrapc(() => cguardar(true))); $('n-list').addEventListener('click', wrapc(clista));
   $('n-lista').addEventListener('click', wrapc(async (e) => { const a = e.target.closest('[data-ab]'), d = e.target.closest('[data-el]'); if (a) await cabrir(a.dataset.ab); else if (d) await celim(d.dataset.el); }));
   $('n-url').value = cloud.url; $('n-key').value = cloud.key; $('nube').open = !cloud.ses; cstate(); if (cloud.ses) clista().catch(() => nmsg('Sesión guardada; si no ves tus proyectos, vuelve a entrar.'));
+  const esperar = async (btn) => { btn.click(); await new Promise((r) => setTimeout(r, 400)); for (let i = 0; i < 240 && btn.disabled; i++) await new Promise((r) => setTimeout(r, 500)); };
+  const aMsg = (t, c) => { setMsg(t, c); const m = $('act-msg'); m.textContent = t; m.style.color = c === 'err' ? '#b45309' : ''; };
+  async function actualizar() {
+    const b = $('b-actualizar'); if (b.disabled) return; b.disabled = true; const hecho = [], falta = [];
+    try {
+      aMsg('Actualizando el proyecto…', '');
+      if (cloud.ses && cloud.pid) { if (cloud.dirty && !confirm('Hay cambios sin guardar. Si actualizas desde la nube se reemplazan por lo guardado. ¿Continuar?')) { b.disabled = false; return; } await cabrir(cloud.pid); hecho.push('datos y fotos traídos de la nube'); }
+      const c = coordsIF(), R = c ? rutaGeo() : { err: 1 };
+      if (!R.err) {
+        if (!IMGS.ubic || !IMGS.loc) { await esperar($('b-sat')); (IMGS.ubic && IMGS.loc) ? hecho.push('imágenes satelitales generadas') : falta.push('imágenes satelitales (necesitan internet)'); }
+        if (!IMGS.mapa && $('p-mun').value.trim()) { await esperar($('b-mapa')); IMGS.mapa ? hecho.push('mapa de ubicación generado') : falta.push('mapa de ubicación (necesita internet)'); }
+      } else falta.push('imágenes y mapa (faltan las coordenadas de inicio y final)');
+      if (!(IMGS.fotos || []).length) falta.push('fotos del lugar (las subes tú en «Imágenes»)');
+      recompute(true); persist();
+      aMsg('Actualizado: ' + (hecho.length ? hecho.join('; ') : 'no faltaba nada por generar') + '.' + (falta.length ? ' Pendiente: ' + falta.join('; ') + '.' : ''), falta.length ? '' : 'ok');
+    } catch (e) { aMsg('No se pudo actualizar: ' + (e && e.message || e), 'err'); }
+    b.disabled = false;
+  }
+  $('b-actualizar').addEventListener('click', actualizar);
+  window.__ready = true;
   /* ---- modo: con / sin topografía ---- */
   function setModo(m) { document.body.dataset.modo = m; $('modo-ov').hidden = true; $('modo-txt').textContent = m === 'sin' ? 'Modo: sin topografía (libreta estimada)' : 'Modo: con topografía'; if (m === 'sin') { $('p-libu').checked = true; if (!$('p-lib').value.trim()) $('p-lib').dataset.est = '1'; } else { $('p-libu').checked = true; } try { persist(); recompute(); } catch (e) {} }
   $('m-con').addEventListener('click', () => setModo('con'));
