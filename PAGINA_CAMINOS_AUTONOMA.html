@@ -3368,7 +3368,8 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     if (AV.length) { AV.forEach((z) => [z.a, z.b].forEach((q) => { if (q > 0.3 && q < Lp - 0.3) ss.push(q); })); ss.sort((p, q) => p - q); const t = [ss[0]]; for (let i = 1; i < ss.length; i++) if (ss[i] - t[t.length - 1] > 0.3) t.push(ss[i]); ss = t; }
     const wAt = (q) => { const z = AV.find((k) => q >= k.a - 1e-6 && q <= k.b + 1e-6); if (z) return z.w; if (!vari) return anc; let bz = AV[0], bd = 1e9; AV.forEach((k) => { const d = Math.min(Math.abs(q - k.a), Math.abs(q - k.b)); if (d < bd) { bd = d; bz = k; } }); return bz.w; };
     const P = ss.map((s) => at(s)), LL = P.map(([x, y]) => [path[0][0] + x / kx, la0 + y / ky]);
-    if (recortado) { const f = (v, h) => { v = Math.abs(v); let dg = Math.floor(v), mm = Math.floor((v - dg) * 60), ss2 = Math.round(((v - dg) * 60 - mm) * 60 * 100) / 100; if (ss2 >= 60) { ss2 = 0; mm++; } if (mm >= 60) { mm = 0; dg++; } return dg + '°' + String(mm).padStart(2, '0') + "'" + ss2.toFixed(2).padStart(5, '0') + '"' + h; }, uL = LL[LL.length - 1]; $('d-latF').value = f(uL[1], uL[1] >= 0 ? 'N' : 'S'); $('d-lonF').value = f(uL[0], uL[0] >= 0 ? 'E' : 'O'); $('d-latF').dispatchEvent(new Event('input', { bubbles: true })); $('d-lonF').dispatchEvent(new Event('input', { bubbles: true })); }
+    const pe = path[path.length - 1], dEnd = Math.hypot((LL[LL.length - 1][0] - pe[0]) * kx, (LL[LL.length - 1][1] - pe[1]) * ky); LASTGEN.endLL = LL[LL.length - 1]; LASTGEN.startLL = LL[0];
+    if (recortado || dEnd > 1) { const f = (v, h) => { v = Math.abs(v); let dg = Math.floor(v), mm = Math.floor((v - dg) * 60), ss2 = Math.round(((v - dg) * 60 - mm) * 60 * 100) / 100; if (ss2 >= 60) { ss2 = 0; mm++; } if (mm >= 60) { mm = 0; dg++; } return dg + '°' + String(mm).padStart(2, '0') + "'" + ss2.toFixed(2).padStart(5, '0') + '"' + h; }, uL = LL[LL.length - 1]; $('d-latF').value = f(uL[1], uL[1] >= 0 ? 'N' : 'S'); $('d-lonF').value = f(uL[0], uL[0] >= 0 ? 'E' : 'O'); $('d-latF').dispatchEvent(new Event('input', { bubbles: true })); $('d-lonF').dispatchEvent(new Event('input', { bubbles: true })); }
     m.textContent = 'Consultando las elevaciones del terreno…'; let el = null;
     try { // el modelo de terreno tiene ~30 m de resolución: se muestrea fino, se suaviza (~±30 m) y se limita la pendiente a un valor real de camino
       const h = 5, ng = Math.max(3, Math.ceil(Lp / h) + 1), G = []; for (let q = 0; q < ng; q++) { const sq = Math.min(Lp, q * h), [x, y] = at(sq); G.push([path[0][0] + x / kx, la0 + y / ky]); }
@@ -3495,7 +3496,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     const mcLo = dentro ? (cab.lo + plo) / 2 : cab.lo + (cab.lo > plo ? -1 : 1) * 0, mcLa = dentro ? (cab.la + pla) / 2 : cab.la;
     // si el proyecto queda lejos, la cabecera se corre a la izquierda para dejar sitio al detalle del proyecto
     const brg0 = Math.atan2((plo - cab.lo) * kx(cab.la), (pla - cab.la) * 111320), ux = dentro ? 1 : (Math.sin(brg0) >= 0 ? 1 : -1) * Math.max(0.6, Math.abs(Math.sin(brg0))), uy = dentro ? 0 : -Math.cos(brg0); // dirección real hacia el proyecto (norte arriba)
-    const cabX = CW / 2 - ux * CW * 0.16, cabY = CH / 2 - uy * CH * 0.2; // la cabecera va del lado contrario al proyecto
+    const cabX = CW / 2 - ux * CW * 0.16, cabY = Math.min(CH * 0.56, CH / 2 - uy * CH * 0.2); // la cabecera va del lado contrario al proyecto
     const M = await pinta(g, dentro ? mcLo : cab.lo + (CW / 2 - cabX) * mpp / kx(cab.la), dentro ? mcLa : cab.la + (cabY - CH / 2) * mpp / 111320, S0, CW, CH);
     let bigOK = !!M.ok, detOK = false;
     const pin = (x, y, col, w) => { g.save(); g.translate(x, y); g.beginPath(); g.moveTo(0, 0); g.bezierCurveTo(-w * 0.9, -w * 1.1, -w * 0.7, -w * 2.4, 0, -w * 2.4); g.bezierCurveTo(w * 0.7, -w * 2.4, w * 0.9, -w * 1.1, 0, 0); g.fillStyle = col; g.fill(); g.lineWidth = 3; g.strokeStyle = '#fff'; g.stroke(); g.beginPath(); g.arc(0, -w * 1.5, w * 0.38, 0, 7); g.fillStyle = '#fff'; g.fill(); g.restore(); };
@@ -3558,7 +3559,10 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
       g.lineJoin = 'round'; g.lineCap = 'round'; curva(); g.strokeStyle = '#fff'; g.lineWidth = 20; g.stroke(); curva(); g.strokeStyle = '#e11d1d'; g.lineWidth = 9; g.stroke(); curva(); g.strokeStyle = '#fff'; g.lineWidth = 2.5; g.setLineDash([16, 14]); g.stroke(); g.setLineDash([]);
       [0.22, 0.45, 0.72].forEach((u) => { const [qx, qy] = bz(u), an = tg(u); g.save(); g.translate(qx, qy); g.rotate(an); g.beginPath(); g.moveTo(14, 0); g.lineTo(-10, -11); g.lineTo(-10, 11); g.closePath(); g.fillStyle = '#fff'; g.fill(); g.restore(); });
       g.beginPath(); g.arc(bxx, byy, 16, 0, 7); g.fillStyle = '#fff'; g.fill(); g.beginPath(); g.arc(bxx, byy, 10, 0, 7); g.fillStyle = '#e11d1d'; g.fill();
-      { const [mx, my] = bz(0.5); g.font = 'bold 26px Arial'; const l1 = 'A ' + (dist / 1000).toFixed(1) + ' km AL ' + dn, l2 = 'ruta de acceso (esquemática)', w1 = Math.max(g.measureText(l1).width, (g.font = '22px Arial', g.measureText(l2).width)) + 28; caja([l1, l2], mx - w1 / 2 + 14, my + 40, 24); }
+      { const [mx, my] = bz(0.5); g.font = 'bold 26px Arial'; const l1 = 'A ' + (dist / 1000).toFixed(1) + ' km AL ' + dn, l2 = 'ruta de acceso (esquemática)', w1 = Math.max(g.measureText(l1).width, (g.font = '22px Arial', g.measureText(l2).width)) + 28; const hh = 2 * (24 + 7) + 14, NOM = [940, 470, 1190, 720], P1R = [cx - 40, cy - 160, cx + 420, cy + 10], hit = (x, y, r) => x < r[2] && x + w1 > r[0] && y < r[3] && y + hh > r[1], hitC = (x, y) => { const nx2 = Math.max(x, Math.min(ix, x + w1)), ny2 = Math.max(y, Math.min(iy, y + hh)); return Math.hypot(nx2 - ix, ny2 - iy) < D / 2 + 14; }; // evita el cuadro de nomenclatura del plano, el rótulo de la cabecera y el círculo
+        let best = null; outer: for (const dx of [0, -0.7 * w1, 0.7 * w1, -1.4 * w1, 1.4 * w1]) for (const dy of [40, -128, -200, 120, 200, -270]) { const x = Math.max(12, Math.min(CW - w1 - 12, mx - w1 / 2 + 14 + dx)), y = Math.max(12, Math.min(CH - hh - 12, my + dy)); if (!hit(x, y, NOM) && !hit(x, y, P1R) && !hitC(x, y)) { best = [x, y]; break outer; } }
+        if (!best) best = [Math.max(12, Math.min(CW - w1 - 12, mx - w1 / 2 + 14)), Math.max(12, Math.min(CH - hh - 12, my + 40))];
+        caja([l1, l2], best[0], best[1], 24); }
       caja(['LATITUD: ' + dp.latI, 'LONGITUD: ' + dp.lonI], ix - D / 2 + 100, iy + D / 2 + 6, 26);
     }
     // escala, norte y créditos
@@ -3600,7 +3604,9 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
         data = new Blob([await wb.xlsx.writeBuffer()], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         filename = 'PRESUPUESTO_' + slug(v.nombre) + '.xlsx';
       } else if (tipo === 'pdf') {
-        { const dp = datosPl(), falta = []; if (!dp.latI || !dp.lonI) falta.push('coordenadas de INICIO'); if (!dp.latF || !dp.lonF) falta.push('coordenadas FINALES'); const key = falta.join('|'); if (falta.length && window._advCoord !== key) { window._advCoord = key; $('imgbox').open = true; setMsg('Faltan las ' + falta.join(' y las ') + ' (latitud y longitud) en "Coordenadas, fotos y mapas para los planos". Complétalas, o vuelve a pulsar para generar con PENDIENTE.'); return null; } }
+        { if (LASTGEN && LASTGEN.endLL && (!$('d-latF').value.trim() || !$('d-lonF').value.trim())) { const q = LASTGEN.endLL; $('d-latF').value = dmsF(q[1], q[1] >= 0 ? 'N' : 'S'); $('d-lonF').value = dmsF(q[0], q[0] >= 0 ? 'E' : 'O'); }
+        if (LASTGEN && LASTGEN.startLL && (!$('d-latI').value.trim() || !$('d-lonI').value.trim())) { const q = LASTGEN.startLL; $('d-latI').value = dmsF(q[1], q[1] >= 0 ? 'N' : 'S'); $('d-lonI').value = dmsF(q[0], q[0] >= 0 ? 'E' : 'O'); }
+        const dp = datosPl(), falta = []; if (!dp.latI || !dp.lonI) falta.push('coordenadas de INICIO'); if (!dp.latF || !dp.lonF) falta.push('coordenadas FINALES'); const key = falta.join('|'); if (falta.length && window._advCoord !== key) { window._advCoord = key; $('imgbox').open = true; setMsg('Faltan las ' + falta.join(' y las ') + ' (latitud y longitud) en "Coordenadas, fotos y mapas para los planos". Complétalas, o vuelve a pulsar para generar con PENDIENTE.'); return null; } }
         const ws = (v.remw || '').split(/[,;\s]+/).map(parseFloat).filter((x) => isFinite(x) && x > 0);
         const doc = PdfGen.build(window.jspdf.jsPDF, R, meta, { remn: v.remn || 0, remwArr: ws.length ? ws : (v.libWs || []), lib: v.libu && v.libA ? v.libA : null, libEst: !!v.libEst, imgs: IMGS, datos: datosPl() });
         data = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
@@ -3727,7 +3733,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
     const b = $('b-actualizar'); if (b.disabled) return; b.disabled = true; const hecho = [], falta = [];
     try {
       aMsg('Actualizando el proyecto…', '');
-      if (cloud.ses && cloud.pid) { if (cloud.dirty && !confirm('Hay cambios sin guardar. Si actualizas desde la nube se reemplazan por lo guardado. ¿Continuar?')) { b.disabled = false; return; } await cabrir(cloud.pid); hecho.push('datos y fotos traídos de la nube'); }
+      if (cloud.ses && cloud.pid) { try { const r = await creq('/storage/v1/object/authenticated/pcr-proyectos/' + cloud.ses.user_id + '/' + cloud.pid + '/imgs.json'), im = await r.json(); let n = 0; Object.keys(im).forEach((k) => { if (!IMGS[k] || (Array.isArray(IMGS[k]) && !IMGS[k].length)) { IMGS[k] = im[k]; n++; } }); infoImgs(); if (n) hecho.push(n + ' imagen(es) traída(s) de la nube'); } catch (e) { /* sin imágenes guardadas */ } }
       const c = coordsIF(), R = c ? rutaGeo() : { err: 1 };
       if (!R.err) {
         if (!IMGS.ubic || !IMGS.loc) { await esperar($('b-sat')); (IMGS.ubic && IMGS.loc) ? hecho.push('imágenes satelitales generadas') : falta.push('imágenes satelitales (necesitan internet)'); }
