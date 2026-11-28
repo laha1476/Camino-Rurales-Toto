@@ -2740,7 +2740,7 @@ const PdfGen = (function () {
     const W = pts ? pts[0].w : v.ancho; if (!(W > 0)) return;
     const white = (a, b, c, e) => { d.setFillColor(255); d.setDrawColor(255); d.rect(px(a), px(b), px(c - a), px(e - b), 'F'); d.setDrawColor(0); d.setFillColor(0); };
     const T = (t, u, y, fs) => { d.setFont('helvetica', 'normal'); d.setFontSize(fs); d.setTextColor(0); d.text(t, px(u), px(y), { align: 'center' }); };
-    white(603, 499, 645, 509); T(nf(W, 2) + ' m', 624, 507.3, 4.2);
+    white(603, 499, 645, 509); T(nf(W - 0.2, 2) + ' m', 624, 507.3, 4.2); // el ancho incluye los bordillos: la cota va entre sus caras internas
     if (tp === 'bordillo') { white(541, 1003, 598, 1017); T(nf(W, 2), 569.5, 1014.8, 6.4); const h = nf((W - 0.2) / 2, 2); white(330, 1019, 388, 1031); T(h, 359, 1029, 6.4); white(750, 1019, 806, 1031); T(h, 778, 1029, 6.4); }
   }
   function p4Tipo(d, v) {
