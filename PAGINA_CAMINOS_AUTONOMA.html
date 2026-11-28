@@ -197,9 +197,10 @@ body[data-modo=con] .m-sin{display:none!important}
 </style>
 
 <div id="modo-ov"><div class="bx" role="dialog" aria-modal="true"><h2>¿Tu proyecto tiene topografía?</h2><div style="font-size:14px;opacity:.85">Según tu respuesta, la aplicación te pide unos datos u otros.</div>
+<div style="text-align:right;margin-top:6px"><button type="button" class="link" id="m-cancel">Cancelar</button></div>
 <button type="button" class="op" id="m-con"><b>Sí, tengo topografía</b><span>Pegas la libreta (estaciones, azimuts, distancias, elevaciones) y, si la tienes, las coordenadas UTM. Todo se calcula con tus datos reales.</span></button>
 <button type="button" class="op" id="m-sin"><b>No, no tengo topografía</b><span>Solo necesitas coordenada inicial, coordenada final, largo y ancho. La aplicación arma una libreta estimada con las imágenes satelitales y un modelo de terreno (es una estimación, no un levantamiento).</span></button></div></div>
-<div id="tipo-ov" hidden><div class="bx" role="dialog" aria-modal="true"><h2>¿Qué tipo de obra es?</h2><div style="font-size:14px;opacity:.85">Cambia los renglones del presupuesto, los detalles de los planos y las especificaciones.</div>
+<div id="tipo-ov" hidden><div class="bx" role="dialog" aria-modal="true"><h2>¿Qué tipo de obra es?</h2><div style="text-align:right"><button type="button" class="link" id="t-cancel">Cancelar</button></div><div style="font-size:14px;opacity:.85">Cambia los renglones del presupuesto, los detalles de los planos y las especificaciones.</div>
 <button type="button" class="op" data-tipo="bordillo"><b>Pavimento + bordillo</b><span>Pavimento hidráulico con bordillo de 0.10 × 0.40 m en ambos lados (el caso de siempre).</span></button>
 <button type="button" class="op" data-tipo="cuneta"><b>Pavimento + cuneta</b><span>Pavimento hidráulico con cuneta de concreto de 0.50 m en ambos lados, en lugar del bordillo.</span></button>
 <button type="button" class="op" data-tipo="mixto"><b>Mixto: bordillo y cuneta por tramos</b><span>Parte del camino lleva bordillo y parte cuneta, por lado. Tú indicas en qué tramos va cada uno.</span></button>
@@ -349,7 +350,7 @@ body[data-modo=con] .m-sin{display:none!important}
   <p class="foot">Borrador de apoyo. Los precios unitarios, los rendimientos y el ajuste de cuadre salen de las reglas observadas en proyectos anteriores y deben ser revisados por el ingeniero responsable antes de presentarlos.</p>
 </div>
 
-<div id="savebar" hidden style="position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:60;max-width:96vw;background:var(--card,#1b2733);color:var(--ink,#e8eef5);border:2px solid #f59e0b;border-radius:12px;padding:10px 14px;box-shadow:0 6px 24px rgba(0,0,0,.45);gap:10px;align-items:center;flex-wrap:wrap;font-size:14px"><span id="sb-txt" style="font-weight:600"></span><button type="button" id="sb-save" class="chip" style="font-weight:800;background:#f59e0b;color:#111;border-color:#f59e0b">Guardar cambios</button><button type="button" id="sb-copy" class="chip">Guardar como proyecto nuevo</button></div>
+<div id="savebar" hidden style="position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:60;max-width:96vw;background:var(--card,#1b2733);color:var(--ink,#e8eef5);border:2px solid #f59e0b;border-radius:12px;padding:10px 14px;box-shadow:0 6px 24px rgba(0,0,0,.45);gap:10px;align-items:center;flex-wrap:wrap;font-size:14px"><span id="sb-txt" style="font-weight:600"></span><button type="button" id="sb-save" class="chip" style="font-weight:800;background:#f59e0b;color:#111;border-color:#f59e0b">Guardar cambios</button><button type="button" id="sb-copy" class="chip">Guardar como proyecto nuevo</button><button type="button" id="sb-x" aria-label="Cerrar" title="Cerrar" style="margin-left:auto;background:none;border:0;color:inherit;font-size:24px;line-height:1;cursor:pointer;padding:0 4px">×</button></div>
 <script>/* Libreta topográfica: lectura de la tabla pegada, geometría, área y corte del tramo. */
 const Libreta = (function () {
   const num = (s) => { const x = parseFloat(String(s).replace(/,/g, '')); return isFinite(x) ? x : NaN; };
@@ -2732,6 +2733,16 @@ const PdfGen = (function () {
 
 
   /* ---- plano 4 para cuneta, mixto y carrilera: se tapan los detalles de bordillo del plano base y se dibujan los propios ---- */
+  function p4Ancho(d, v) { // ancho constante: reemplaza los textos «VARIABLE» de la trama por el ancho real
+    const tp = v.tipo || 'bordillo'; if (tp === 'carrilera') return;
+    const lib = v.lib, pts = lib && lib.pts && lib.pts.length ? lib.pts : null;
+    if (pts && new Set(pts.map((q) => nf(q.w, 2))).size > 1) return;
+    const W = pts ? pts[0].w : v.ancho; if (!(W > 0)) return;
+    const white = (a, b, c, e) => { d.setFillColor(255); d.setDrawColor(255); d.rect(px(a), px(b), px(c - a), px(e - b), 'F'); d.setDrawColor(0); d.setFillColor(0); };
+    const T = (t, u, y, fs) => { d.setFont('helvetica', 'normal'); d.setFontSize(fs); d.setTextColor(0); d.text(t, px(u), px(y), { align: 'center' }); };
+    white(603, 499, 645, 509); T(nf(W, 2) + ' m', 624, 507.3, 4.2);
+    if (tp === 'bordillo') { white(541, 1003, 598, 1017); T(nf(W, 2), 569.5, 1014.8, 6.4); const h = nf((W - 0.2) / 2, 2); white(330, 1019, 388, 1031); T(h, 359, 1029, 6.4); white(750, 1019, 806, 1031); T(h, 778, 1029, 6.4); }
+  }
   function p4Tipo(d, v) {
     const tp = v.tipo || 'bordillo'; if (tp === 'bordillo') return;
     const aC = v.anchoC > 0 ? v.anchoC : 0.65, gp = v.gapc > 0 ? v.gapc : 0.8, sep = v.sep || 2.5, ws = anchosTipicos(v), W = tp === 'carrilera' ? 2 * aC + gp : (ws[0] || v.ancho || 5);
@@ -2814,7 +2825,7 @@ const PdfGen = (function () {
         const xa = x0 + 0.5 * sc, xb = x0 + W * sc - (kR === 'cuneta' ? 0.5 : 0.1) * sc, mid = (xa + xb) / 2, cr = 0.025 * (xb - xa) / 2 / sc;
         pg([[xa, gy], [xb, gy], [xb, gy - 0.15 * sc], [xa, gy - 0.15 * sc]], 'FD', 238); dots(d, xa, gy - 0.15 * sc, xb - xa, 0.15 * sc, 60, 7);
         pg([[xa, gy - 0.15 * sc], [mid, gy - (0.15 + cr) * sc], [xb, gy - 0.15 * sc], [xb, gy - 0.30 * sc], [mid, gy - (0.30 + cr) * sc], [xa, gy - 0.30 * sc]], 'FD', 255); dots(d, xa, gy - 0.30 * sc, xb - xa, 0.14 * sc, 50, 13);
-        dimH(d, x0, x0 + 0.5 * sc, gy - 0.62 * sc, '0.50', true); dimH(d, x0 + 0.5 * sc, xb, gy - 0.62 * sc, 'VARIABLE', true); dimH(d, xb, x0 + W * sc, gy - 0.62 * sc, kR === 'cuneta' ? '0.50' : '0.10', true);
+        dimH(d, x0, x0 + 0.5 * sc, gy - 0.62 * sc, '0.50', true); dimH(d, x0 + 0.5 * sc, xb, gy - 0.62 * sc, ws.length > 1 ? 'VARIABLE' : nf((xb - x0 - 0.5 * sc) / sc, 2), true); dimH(d, xb, x0 + W * sc, gy - 0.62 * sc, kR === 'cuneta' ? '0.50' : '0.10', true);
         txt('PEND. 2.5%', (xa + mid) / 2, gy - 0.5 * sc, { al: 'center', fs: 6 }); txt('PEND. 2.5%', (mid + xb) / 2, gy - 0.5 * sc, { al: 'center', fs: 6 });
         lead('CUNETA', x0 + 0.25 * sc, gy - 1.2 * sc, x0 + 0.45 * sc, gy - 0.35 * sc, 'center'); lead(tp === 'cuneta' ? 'CUNETA' : 'BORDILLO 0.10 x 0.40', x0 + W * sc - 0.25 * sc, gy - 1.2 * sc, x0 + W * sc - (tp === 'cuneta' ? 0.05 : 0.05) * sc, gy - 0.35 * sc, 'center');
         if (tp === 'mixto') txt('(EL LADO CON CUNETA O BORDILLO CAMBIA SEGÚN LOS TRAMOS DEL PLANO 3)', cx, gy + 0.62 * sc + 18, { al: 'center', fs: 5.8 }); }
@@ -2831,7 +2842,7 @@ const PdfGen = (function () {
     if (PBG) d.addImage(PBG[1], 'JPEG', 0, 0, 420, 297); frame(d, meta, n, 'PLANO DE UBICACION + LOCALIZACION', 1, T, 'INDICADA', true); plano1(d, R, v, meta);
     d.addPage(); if (PBG) d.addImage(PBG[2], 'JPEG', 0, 0, 420, 297); frame(d, meta, n, 'PLANO DE SITUACION ACTUAL', 2, T, 'INDICADA', true); plano2(d, R, v, meta);
     d.addPage(); frame(d, meta, n, 'PLANTA Y PERFIL DE PAVIMENTO', 3, T, 'INDICADA', true); plano3(d, R, v, meta, T, spill);
-    d.addPage(); if (P4IMG) { d.addImage(P4IMG, 'JPEG', 0, 0, 420, 297); p4Texto(d, v); p4Tipo(d, v); if (!v.remn) { d.setFillColor(255); d.rect(px(1080), px(972), px(344), px(243), 'F'); } }
+    d.addPage(); if (P4IMG) { d.addImage(P4IMG, 'JPEG', 0, 0, 420, 297); p4Texto(d, v); p4Ancho(d, v); p4Tipo(d, v); if (!v.remn) { d.setFillColor(255); d.rect(px(1080), px(972), px(344), px(243), 'F'); } }
     frame(d, meta, n, 'DETALLES CONSTRUCTIVOS', 4, T, 'INDICADA', true); if (!P4IMG) plano4(d, R, v, T);
     return raw;
   }
@@ -3918,7 +3929,7 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   $('b-libex').addEventListener('click', () => { $('p-lib').value = LIB_EJEMPLO; $('p-libu').checked = true; persist(); recompute(); });
   $('b-libclr').addEventListener('click', () => { $('p-lib').value = ''; persist(); recompute(); });
   document.querySelectorAll('#form input, #form select').forEach((i) => i.addEventListener('input', () => { if (i.id === 'p-ter') $('f-corte').hidden = !i.checked; schedule(); }));
-  document.querySelectorAll('[data-ex]').forEach((b) => b.addEventListener('click', () => { limpiarDatos(); setForm(EXAMPLES[b.dataset.ex]); persist(); recompute(); }));
+  document.querySelectorAll('[data-ex]').forEach((b) => b.addEventListener('click', () => { limpiarDatos(); setForm(EXAMPLES[b.dataset.ex]); persist(); recompute(); if (b.dataset.ex === 'nuevo') { window.__tipoAsked = false; $('modo-ov').hidden = false; } }));
 
 
   /* ---- nube (Supabase): cuenta, proyectos guardados, fotos y mapas ---- */
@@ -3927,9 +3938,10 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   const csave = () => { try { localStorage.setItem(CK, JSON.stringify({ url: cloud.url, key: cloud.key, ses: cloud.ses, pid: cloud.pid })); } catch (e) { /* sin almacenamiento */ } };
   const nmsg = (t, bad) => { $('n-msg').textContent = t; $('n-msg').style.color = bad ? '#b45309' : ''; };
   function cstate() { const ok = cloud.url && cloud.key, on = !!cloud.ses; $('n-cfg').hidden = true; $('n-auth').hidden = !ok || on; $('n-proj').hidden = !on;
-    { const sb = $('savebar'), nm = (document.getElementById('p-nombre').value || 'este proyecto').trim(); if (!on) { sb.hidden = true; } else if (cloud.pid && cloud.dirty) { sb.hidden = false; $('sb-txt').textContent = 'Hay cambios sin guardar en «' + nm.slice(0, 60) + '»'; $('sb-save').textContent = 'Guardar cambios (reemplaza el guardado)'; $('sb-copy').hidden = false; } else if (!cloud.pid) { sb.hidden = false; $('sb-txt').textContent = 'Este proyecto aún no está guardado en la nube'; $('sb-save').textContent = 'Guardar en la nube'; $('sb-copy').hidden = true; } else sb.hidden = true; sb.style.display = sb.hidden ? 'none' : 'flex'; }
+    { const sb = $('savebar'), nm = (document.getElementById('p-nombre').value || 'este proyecto').trim(); if (!on) { sb.hidden = true; } else if (cloud.pid && cloud.dirty) { sb.hidden = false; $('sb-txt').textContent = 'Hay cambios sin guardar en «' + nm.slice(0, 60) + '»'; $('sb-save').textContent = 'Guardar cambios (reemplaza el guardado)'; $('sb-copy').hidden = false; } else if (!cloud.pid) { sb.hidden = false; $('sb-txt').textContent = 'Este proyecto aún no está guardado en la nube'; $('sb-save').textContent = 'Guardar en la nube'; $('sb-copy').hidden = true; } else sb.hidden = true; if (window.__sbHide) sb.hidden = true; sb.style.display = sb.hidden ? 'none' : 'flex'; }
     $('n-state').textContent = !ok ? 'sin conectar' : !on ? 'entra o crea tu cuenta' : (cloud.ses.email || 'conectado') + (cloud.pid ? (cloud.dirty ? ' · cambios sin guardar' : ' · proyecto guardado') : ' · proyecto sin guardar'); }
-  window.cloudMark = () => { if (cloud.pid && !cloud.dirty) { cloud.dirty = true; cstate(); } };
+  window.cloudMark = () => { if (cloud.pid && !cloud.dirty) { cloud.dirty = true; window.__sbHide = false; cstate(); } };
+  $('sb-x').addEventListener('click', () => { window.__sbHide = true; $('savebar').hidden = true; $('savebar').style.display = 'none'; });
   async function crefresh() { if (!cloud.ses || !cloud.ses.refresh_token) return false; try { const r = await fetch(cloud.url + '/auth/v1/token?grant_type=refresh_token', { method: 'POST', headers: { apikey: cloud.key, 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: cloud.ses.refresh_token }) }); if (!r.ok) return false; csess(await r.json()); return true; } catch (e) { return false; } }
   function csess(j) { cloud.ses = { access_token: j.access_token, refresh_token: j.refresh_token, user_id: (j.user || {}).id || (cloud.ses && cloud.ses.user_id), email: (j.user || {}).email || (cloud.ses && cloud.ses.email) }; csave(); }
   async function creq(path, o) { o = o || {}; const go = () => { const h = Object.assign({ apikey: cloud.key, Authorization: 'Bearer ' + (cloud.ses ? cloud.ses.access_token : cloud.key) }, o.headers || {}); let b = o.body; if (b !== undefined && !o.raw) { h['Content-Type'] = 'application/json'; b = JSON.stringify(b); } return fetch(cloud.url + path, { method: o.method || 'GET', headers: h, body: b }); };
@@ -3991,8 +4003,10 @@ const SPEC_TEMPLATES = {"caj_rem":"UEsDBBQAAAAIAKICY11uP/UJZwEAABsGAAATAAAAW0Nvb
   $('m-con').addEventListener('click', () => setModo('con', !!window.__tipoAsked));
   $('m-sin').addEventListener('click', () => setModo('sin', !!window.__tipoAsked));
   $('modo-cambiar').addEventListener('click', () => { $('modo-ov').hidden = false; });
-  document.body.dataset.modo = 'con';
-  $('modo-ov').hidden = false; // siempre pregunta al abrir
+  { const m0 = saved && saved.modo === 'sin' ? 'sin' : 'con'; document.body.dataset.modo = m0; $('modo-ov').hidden = true; $('tipo-ov').hidden = true; $('modo-txt').textContent = m0 === 'sin' ? 'Modo: sin topografía (libreta estimada)' : 'Modo: con topografía'; } // ya no pregunta al abrir: la pregunta sale al crear un proyecto nuevo
+  window.__tipoAsked = true;
+  $('m-cancel').addEventListener('click', () => { $('modo-ov').hidden = true; });
+  $('t-cancel').addEventListener('click', () => { $('tipo-ov').hidden = true; });
   recompute();
   try {
     if (window.claude && window.claude.use) window.claude.use('downloads').then((d) => { dl = d; dlReady = true; recompute(true); }, () => { dlReady = true; recompute(true); });
